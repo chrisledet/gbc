@@ -20,15 +20,17 @@ Windows
 
 	msbuild gbc.sln /p:Configuration=Release
 
+Linux
 
-Run
+	make
 
-	cd Release
-	.\gbc.exe
+
+Run:
+
+	gbc <rom filepath>
 
 
 
 ## Helpful Resources
-
 
 - https://wiki.libsdl.org/SDL3/SDL_CreateRenderer
