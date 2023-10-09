@@ -1,12 +1,17 @@
 # gbc
 
-gameboy color emulator
+GameBoy Color emulator
+
+## Requirements
+
+* CMake
+* C compiler toolchain
+
 
 ## Dependencies
 
 * SDL2 (included)
-* CMake
-* C compiler
+
 
 ## Build
 
@@ -14,23 +19,18 @@ First generate platform build files
 
 	mkdir build
 	cd build
-	cmake ...
+	cmake ..
+	cmake --build . --config Release
 
-Windows
-
-	msbuild gbc.sln /p:Configuration=Release
-
-Linux
-
-	make
+You should see `gbc` and `SDL3` binaries in the Release directory within build.
 
 
-Run:
+## Run
 
 	gbc <rom filepath>
 
 
-
 ## Helpful Resources
 
+- https://gbdev.io/pandocs/single.html
 - https://wiki.libsdl.org/SDL3/SDL_CreateRenderer
