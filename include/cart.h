@@ -22,4 +22,13 @@ typedef struct {
 	uint16_t gchecksum;
 } rom_header;
 
+typedef struct {
+	const char *filepath;
+	uint32_t rom_size;
+	uint8_t *rom_data;
+	rom_header *header;
+} cart_context;
+
+cart_context *get_cart_context();
 bool cart_load(const char *cart_filepath);
+uint8_t cart_read(uint16_t addr);

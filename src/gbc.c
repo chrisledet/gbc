@@ -6,6 +6,7 @@
 #include "common.h"
 #include "cart.h"
 #include "cpu.h"
+#include "bus.h"
 
 #include "SDL.h"
 
@@ -37,7 +38,7 @@ void gbc_display_window() {
         SDL_WINDOW_RESIZABLE
     );
 
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, NULL, SDL_RENDERER_ACCELERATED);
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, NULL, SDL_RENDERER_PRESENTVSYNC);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(renderer);
     SDL_RenderPresent(renderer);
@@ -88,6 +89,8 @@ int gbc_run(const char *rom_filepath) {
     ctx.paused = false;
     ctx.ticks = 0;
 
+    // gbc_display_window();
+
     while (ctx.running) {
         if (ctx.paused == false) {
             if (!cpu_step()) {
@@ -100,9 +103,6 @@ int gbc_run(const char *rom_filepath) {
         ctx.ticks++;
     }
 
-    cpu_step();
-
-    // gbc_display_window();
 
     return 0;
 }

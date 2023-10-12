@@ -1,14 +1,27 @@
-#include <stdio.h>
 #include "cart.h"
 
-typedef struct {
-	const char *filepath;
-	uint32_t rom_size;
-	uint8_t *rom_data;
-	rom_header *header;
-} cart_context;
+#include <stdio.h>
+
+static uint8_t scrolling_logo[] = {
+    0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B,
+    0x03, 0x73, 0x00, 0x83, 0x00, 0x0C, 0x00, 0x0D,
+    0x00, 0x08, 0x11, 0x1F, 0x88, 0x89, 0x00, 0x0E,
+    0xDC, 0xCC, 0x6E, 0xE6, 0xDD, 0xDD, 0xD9, 0x99,
+    0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC,
+    0xDD, 0xDC, 0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E
+};
 
 static cart_context ctx;
+
+cart_context *get_cart_context() {
+    return &ctx;
+}
+
+
+uint8_t cart_read(uint16_t addr) {
+    return ctx.rom_data[addr];
+}
+
 
 bool cart_load(const char *cart_filepath) {
 	ctx.filepath = cart_filepath;
@@ -45,6 +58,11 @@ bool cart_load(const char *cart_filepath) {
     ctx.header = (rom_header *)(ctx.rom_data + 0x100);
     ctx.header->game_title[15] = 0; // ensure str termination
 
+    if (memcmp(&ctx.rom_data[0x104], scrolling_logo, sizeof(scrolling_logo)) != 0) {
+        fprintf(stderr, "ERR: cart missing logo header)");
+        return false;
+    }
+
     // run checksum
     uint16_t checksum  = 0;
     for (uint16_t i = 0x0134; i <= 0x014C; i++) {
@@ -61,6 +79,12 @@ bool cart_load(const char *cart_filepath) {
     printf("\tRAM SIZE : %2.2X\n", ctx.header->ram_size);
     printf("\tLIC CODE : %2.2X\n", ctx.header->license_code);
     printf("\tROM VERS : %2.2X\n", ctx.header->version);
+    printf("\tPC       : 0x%02X%02X%02X%02X\n",
+        ctx.header->entry_point[0],
+        ctx.header->entry_point[1],
+        ctx.header->entry_point[2],
+        ctx.header->entry_point[3]
+    );
     printf("\tCHECKSUM : %2.2X (%s)\n", ctx.header->checksum, r_checksum ? "PASSED" : "FAILED");
     return r_checksum;
 }
