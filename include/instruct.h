@@ -12,9 +12,11 @@ typedef enum {
 	INSTRUCT_JP,
 	INSTRUCT_JR,
 	INSTRUCT_RST,
+	INSTRUCT_CP,
 } cpu_instruction_type;
 
 typedef enum {
+	REG_NONE,
 	REG_A,
 	REG_F,
 	REG_B,
@@ -41,6 +43,7 @@ typedef enum {
 	MODE_ADDR_TO_REG, // reg, (reg)
 	MODE_REG_TO_ADDR, // (reg), reg
 	MODE_D8_TO_REG, // reg, d8
+	MODE_D16_TO_REG, // reg, d8
 	MODE_PARAM, // fixed value
 } cpu_address_mode;
 
@@ -57,15 +60,15 @@ typedef enum {
 typedef struct {
 	cpu_instruction_type type;
 	cpu_address_mode mode;
-	cpu_register register_1;
-	cpu_register register_2;
+	cpu_register r_target;
+	cpu_register r_source;
 	cpu_condition_flag flag;
 	uint8_t parameter;
 } cpu_instruction;
 
 static cpu_instruction instructions[0x100] = {
 	[0x00] = {INSTRUCT_NOP, MODE_NONE},
-	[0x01] = {INSTRUCT_NONE},
+	[0x01] = {INSTRUCT_LD, MODE_D16, REG_BC},
 	[0x02] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_BC, REG_A},
 	[0x03] = {INSTRUCT_NONE},
 	[0x04] = {INSTRUCT_NONE},
@@ -82,7 +85,7 @@ static cpu_instruction instructions[0x100] = {
 	[0x0F] = {INSTRUCT_NONE},
 
 	[0x10] = {INSTRUCT_NONE},
-	[0x11] = {INSTRUCT_NONE},
+	[0x11] = {INSTRUCT_LD, MODE_D16, REG_DE},
 	[0x12] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_DE, REG_A},
 	[0x13] = {INSTRUCT_NONE},
 	[0x14] = {INSTRUCT_NONE},
@@ -99,7 +102,7 @@ static cpu_instruction instructions[0x100] = {
 	[0x1F] = {INSTRUCT_NONE},
 
 	[0x20] = {INSTRUCT_JR, MODE_D8, .flag = FLAG_NZ},
-	[0x21] = {INSTRUCT_NONE},
+	[0x21] = {INSTRUCT_LD, MODE_D16, REG_HL},
 	[0x22] = {INSTRUCT_LD, MODE_REG_TO_ADDR, REG_HL, REG_A},
 	[0x23] = {INSTRUCT_NONE},
 	[0x24] = {INSTRUCT_NONE},
@@ -116,7 +119,7 @@ static cpu_instruction instructions[0x100] = {
 	[0x2F] = {INSTRUCT_NONE},
 
 	[0x30] = {INSTRUCT_JR, MODE_D8, .flag = FLAG_NC},
-	[0x31] = {INSTRUCT_NONE},
+	[0x31] = {INSTRUCT_LD, MODE_D16_TO_REG, REG_SP},
 	[0x32] = {INSTRUCT_LD, MODE_REG_TO_ADDR, REG_HL, REG_A},
 	[0x33] = {INSTRUCT_NONE},
 	[0x34] = {INSTRUCT_NONE},
@@ -333,6 +336,6 @@ static cpu_instruction instructions[0x100] = {
 	[0xFB] = {INSTRUCT_NONE},
 	[0xFC] = {INSTRUCT_NONE},
 	[0xFD] = {INSTRUCT_NONE},
-	[0xFE] = {INSTRUCT_NONE},
+	[0xFE] = {INSTRUCT_CP, MODE_D8},
 	[0xFF] = {INSTRUCT_RST, MODE_PARAM, .parameter = 0x38},
 };

@@ -4,31 +4,31 @@
 
 typedef struct {
 	// 0100-0103 main exec address
-	uint8_t entry_point[4];
+	u8 entry_point[4];
 	// 0104-0133 — Nintendo logo
-	uint8_t logo[0x30];
+	u8 logo[0x30];
 	// 0134-0143 — game title
 	char game_title[16];
-	uint16_t new_license_code;
-	uint8_t sgb_flag;
-	uint8_t type;
-	uint8_t rom_size;
-	uint8_t ram_size;
-	uint8_t dst_code;
+	u16 new_license_code;
+	u8 sgb_flag;
+	u8 type;
+	u8 rom_size;
+	u8 ram_size;
+	u8 dst_code;
 	// game publisher
-	uint8_t license_code;
-	uint8_t version;
-	uint8_t checksum;
-	uint16_t gchecksum;
+	u8 license_code;
+	u8 version;
+	u8 checksum;
+	u16 gchecksum;
 } rom_header;
 
 typedef struct {
 	const char *filepath;
-	uint32_t rom_size;
-	uint8_t *rom_data;
+	u32 rom_size;
+	u8 *rom_data;
 	rom_header *header;
 } cart_context;
 
 cart_context *get_cart_context();
 bool cart_load(const char *cart_filepath);
-uint8_t cart_read(uint16_t addr);
+u8 cart_read(u16 addr);

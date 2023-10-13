@@ -1,6 +1,7 @@
 #include "cart.h"
 
 #include <stdio.h>
+#include <string.h>
 
 static uint8_t scrolling_logo[] = {
     0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B,

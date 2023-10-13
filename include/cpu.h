@@ -6,21 +6,25 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-typedef struct {
-	uint8_t a; // AF
-	uint8_t f; // ZNHC0000
-	uint8_t b; // bc
-	uint8_t c;
-	uint8_t d; // de
-	uint8_t e;
-	uint8_t h; // hl
-	uint8_t l;
-	uint16_t pc; // program counter
-	uint16_t sp; // stack pointer
-} cpu_registers;
+
+
+typedef union {
+	u16 val;
+	struct {
+		u8 l;
+		u8 h;
+	} bytes;
+} cpu_r16;
 
 typedef struct {
-	cpu_registers registers;
+	struct {
+		cpu_r16 AF;
+		cpu_r16 BC;
+		cpu_r16 DE;
+		cpu_r16 HL;
+		cpu_r16 PC;
+		cpu_r16 SP;
+	} registers;
 	u8 current_opcode;
 	cpu_instruction current_instruction;
 	u16 fetched_data;
@@ -29,8 +33,6 @@ typedef struct {
 	bool stopped;
 } cpu_context;
 
-// prep cpu
 void cpu_init();
 
-// perform next execution step
 bool cpu_step();

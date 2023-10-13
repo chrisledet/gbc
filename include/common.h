@@ -10,7 +10,7 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 
 #define BIT(a, n) ((a & (1 << n)) ? 1 : 0)
-#define BIT_SET(a, n, on) (on ? (a) |= (1 << n) : (a) &= ~(1 << n))
 #define BETWEEN(a, b, c) ((a >= b) && (a <= c))
+#define REVERSE(n) ((n & 0xFF00) >> 8) | ((n & 0x00FF) << 8)
 
 void delay(uint32_t ms);
