@@ -18,11 +18,9 @@ cart_context *get_cart_context() {
     return &ctx;
 }
 
-
-uint8_t cart_read(uint16_t addr) {
+u8 cart_read(u16 addr) {
     return ctx.rom_data[addr];
 }
-
 
 bool cart_load(const char *cart_filepath) {
 	ctx.filepath = cart_filepath;
@@ -46,14 +44,14 @@ bool cart_load(const char *cart_filepath) {
 
     rewind(file);
     const size_t fread_rc = fread(ctx.rom_data, ctx.rom_size, 1, file);
+    const last_read = ftell(file);
+    fclose(file);
     // still confused if rc is supppose to be 1 or not
     // if (fread_rc == 1) {
-    if (ctx.rom_size != ftell(file)) {
-    	fprintf(stderr, "WARN: cart read wasnt successful: %zu, failed at %lu\n", fread_rc, ftell(file));
+    if (ctx.rom_size != last_read) {
+    	fprintf(stderr, "WARN: cart read wasnt successful: %zu, failed at %lu\n", fread_rc, last_read);
         return false;
     }
-
-    fclose(file);
 
     // rom actually starts at 0x100
     ctx.header = (rom_header *)(ctx.rom_data + 0x100);
@@ -67,7 +65,7 @@ bool cart_load(const char *cart_filepath) {
     // run checksum
     uint16_t checksum  = 0;
     for (uint16_t i = 0x0134; i <= 0x014C; i++) {
-    	checksum = checksum - ctx.rom_data[i] - 1;
+    	checksum = checksum - (ctx.rom_data[i] - 1);
     }
     bool r_checksum = (checksum & 0xFF);
 

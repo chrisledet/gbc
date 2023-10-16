@@ -7,7 +7,6 @@
 #include <stdint.h>
 
 
-
 typedef union {
 	u16 val;
 	struct {
@@ -31,8 +30,12 @@ typedef struct {
 	u32 cycles;
 	bool halted;
 	bool stopped;
+	bool write_bus;
+	u16 write_dst; // bus address to write to
+
+	bool ime;
+	u8 interupt_flags;
 } cpu_context;
 
 void cpu_init();
-
 bool cpu_step();

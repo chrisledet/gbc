@@ -1,8 +1,11 @@
 #include "cpu.h"
-#include "bus.h"
-#include "cart.h"
 
 #include <stdio.h>
+
+#include "bus.h"
+#include "cart.h"
+#include "mbc.h"
+#include "common.h"
 
 
 #define CPU_REG_A ctx.registers.AF.bytes.h
@@ -27,9 +30,9 @@
 #define CPU_FLAG_C BIT(CPU_REG_F, 4)
 
 #define CPU_SET_FLAG_Z(x) CPU_REG_F = ((CPU_REG_F & 0x7f) | (x << 7))
-#define CPU_SET_FLAG_N(x) CPU_REG_N = ((CPU_REG_N & 0xbf) | (x << 6))
-#define CPU_SET_FLAG_H(x) CPU_REG_H = ((CPU_REG_H & 0xdf) | (x << 5))
-#define CPU_SET_FLAG_C(x) CPU_REG_C = ((CPU_REG_C & 0xef) | (x << 4))
+#define CPU_SET_FLAG_N(x) CPU_REG_F = ((CPU_REG_F & 0xbf) | (x << 6))
+#define CPU_SET_FLAG_H(x) CPU_REG_F = ((CPU_REG_F & 0xdf) | (x << 5))
+#define CPU_SET_FLAG_C(x) CPU_REG_F = ((CPU_REG_F & 0xef) | (x << 4))
 
 static cpu_context ctx;
 
@@ -59,11 +62,7 @@ u8* cpu_reg8_ptr(cpu_register r) {
     }
 }
 
-u16 cpu_read_reg(cpu_register r) {
-	u16* reg16ptr = cpu_reg16_ptr(r);
-	if (reg16ptr != NULL) {
-		return *reg16ptr;
-	}
+u8 cpu_read_reg(cpu_register r) {
 	u8* reg8ptr = cpu_reg8_ptr(r);
 	if (reg8ptr != NULL) {
 		return *reg8ptr;
@@ -71,26 +70,36 @@ u16 cpu_read_reg(cpu_register r) {
 	return 0;
 }
 
+u16 cpu_read_reg16(cpu_register r) {
+	u16* reg16ptr = cpu_reg16_ptr(r);
+	if (reg16ptr != NULL) {
+		return REVERSE(*reg16ptr);
+	}
+	return 0;
+}
+
 void cpu_write_reg(cpu_register r, u16 v) {
+	u8* reg8ptr = cpu_reg8_ptr(r);
+	if (reg8ptr != NULL) {
+		*reg8ptr = v & 0xff;
+	}
+}
+
+void cpu_write_reg16(cpu_register r, u16 v) {
 	u16* reg16ptr = cpu_reg16_ptr(r);
 	if (reg16ptr != NULL) {
 		*reg16ptr = v;
-	} else {
-		u8* reg8ptr = cpu_reg8_ptr(r);
-		if (reg8ptr != NULL) {
-			*reg8ptr = (u8)v;
-		}
 	}
 }
 
 void cpu_inc_reg(cpu_register r) {
 	u16* reg16ptr = cpu_reg16_ptr(r);
 	if (reg16ptr != NULL) {
-		*reg16ptr++;
+		(*reg16ptr)++;
 	} else {
 		u8* reg8ptr = cpu_reg8_ptr(r);
 		if (reg8ptr != NULL) {
-			*reg8ptr++;
+			(*reg8ptr)++;
 		}
 	}
 }
@@ -99,11 +108,11 @@ void cpu_inc_reg(cpu_register r) {
 void cpu_dec_reg(cpu_register r) {
 	u16* reg16ptr = cpu_reg16_ptr(r);
 	if (reg16ptr != NULL) {
-		*reg16ptr--;
+		(*reg16ptr)--;
 	} else {
 		u8* reg8ptr = cpu_reg8_ptr(r);
 		if (reg8ptr != NULL) {
-			*reg8ptr--;
+			(*reg8ptr)--;
 		}
 	}
 }
@@ -142,10 +151,13 @@ u16 cpu_read_nn() {
 void cpu_fetch_instruction() {
 	ctx.current_opcode = bus_read(CPU_REG_PC);
 	ctx.current_instruction = instructions[ctx.current_opcode];
+	ctx.write_bus = false;
 }
 
 void cpu_fetch_data() {
 	switch (ctx.current_instruction.mode) {
+		case MODE_NONE:
+		break;
 		case MODE_A16:
 			ctx.fetched_data =  cpu_read_nn();
 		break;
@@ -161,8 +173,19 @@ void cpu_fetch_data() {
 		case MODE_REG_TO_REG:
 			ctx.fetched_data = cpu_read_reg(ctx.current_instruction.r_source);
 		break;
+		case MODE_ADDR_TO_REG:
+			ctx.fetched_data = bus_read(ctx.current_instruction.r_source);
+		break;
+		case MODE_REG_TO_ADDR:
+			ctx.fetched_data = cpu_read_reg(ctx.current_instruction.r_source);
+			ctx.write_bus = true;
+			ctx.write_dst = cpu_read_reg(ctx.current_instruction.r_target);
+		break;
 		case MODE_PARAM:
 			ctx.fetched_data =  ctx.current_instruction.parameter;
+		break;
+		default:
+			printf("ERR: address mode not supported.\n");
 		break;
 	}
 }
@@ -180,24 +203,37 @@ void cpu_execute_instruction() {
 
 		case INSTRUCT_LD:
 			ctx.cycles += 1;
-			cpu_write_reg(ctx.current_instruction.r_target, ctx.fetched_data);
-		break;
+			if (ctx.write_bus) {
+				bus_write(ctx.write_dst, ctx.fetched_data);
+			} else {
+				cpu_write_reg(ctx.current_instruction.r_target, ctx.fetched_data);
+			}
+			break;
 
 		case INSTRUCT_LDI:
 			ctx.cycles += 1;
-			cpu_write_reg(ctx.current_instruction.r_target, ctx.fetched_data);
+			if (ctx.write_bus) {
+				bus_write(ctx.write_dst, ctx.fetched_data);
+			} else {
+				cpu_write_reg(ctx.current_instruction.r_target, ctx.fetched_data);
+			}
 			cpu_inc_reg(ctx.current_instruction.r_target);
-		break;
+			break;
 
 		case INSTRUCT_LDD:
 			ctx.cycles += 1;
-			cpu_write_reg(ctx.current_instruction.r_target, ctx.fetched_data);
+			if (ctx.write_bus) {
+				bus_write(ctx.write_dst, ctx.fetched_data);
+			} else {
+				cpu_write_reg(ctx.current_instruction.r_target, ctx.fetched_data);
+			}
 			cpu_dec_reg(ctx.current_instruction.r_target);
 		break;
 
 		case INSTRUCT_RST:
 			ctx.cycles += 4;
 			CPU_REG_SP -= 2;
+			cpu_write_reg(REG_SP, CPU_REG_PC);
 			CPU_REG_PC = ctx.fetched_data;
 		break;
 
@@ -225,9 +261,12 @@ void cpu_execute_instruction() {
 
 		case INSTRUCT_CP:
 			ctx.cycles += 1;
-			u16 nn = cpu_read_reg(ctx.current_instruction.r_source);
-			u16 r = nn - ctx.fetched_data;
-			CPU_SET_FLAG_Z(nn == ctx.fetched_data);
+			u16 a = cpu_read_reg(ctx.current_instruction.r_source);
+			u16 r = (a - ctx.fetched_data) & 0xf;
+			CPU_SET_FLAG_Z(a == ctx.fetched_data);
+			CPU_SET_FLAG_N(1);
+			CPU_SET_FLAG_H((r > a) & 0xf);
+			CPU_SET_FLAG_C(a < ctx.fetched_data);
 		break;
 
 		default:
@@ -245,35 +284,36 @@ void _cpu_debug() {
 	// 	ctx.cycles
 	// );
 
-	printf("PC: %04X OPCODE: %2.2X | AF: %02X%02X, BC: %02X%02X, DE: %02X%02X, HL: %02X%02X, SP: %04X, cycles: %d\n",
+	printf("PC: %04X OPCODE: %2.2X | AF: %02X%02X, BC: %02X%02X, DE: %02X%02X, HL: %02X%02X, SP: %04X, cycles: %d | FLAGS Z=%d N=%d H=%d C=%d\n",
 		CPU_REG_PC,
 		ctx.current_opcode,
-		CPU_REG_A, CPU_REG_F, CPU_REG_B, CPU_REG_C, CPU_REG_D, CPU_REG_E, CPU_REG_H, CPU_REG_L, CPU_REG_SP, ctx.cycles);
+		CPU_REG_A, CPU_REG_F, CPU_REG_B, CPU_REG_C, CPU_REG_D, CPU_REG_E, CPU_REG_H, CPU_REG_L, CPU_REG_SP, ctx.cycles,
+		CPU_FLAG_Z, CPU_FLAG_N, CPU_FLAG_H, CPU_FLAG_C);
 }
 
 void cpu_init() {
-	cpu_write_reg(REG_AF, 0x13);
-	cpu_write_reg(REG_HL, 0x014D);
-	cpu_write_reg(REG_AF, 0x13);
-	cpu_write_reg(REG_PC, 0x100);
-	cpu_write_reg(REG_SP, 0xFFFE);
+	cpu_write_reg16(REG_AF, 0x13);
+	cpu_write_reg16(REG_HL, 0x014D);
+	cpu_write_reg16(REG_PC, 0x100);
+	cpu_write_reg16(REG_SP, 0xFFFE);
 }
 
 bool cpu_step() {
 	if (ctx.halted) {
 		ctx.cycles += 1;
+		if (ctx.interupt_flags) {
+			ctx.halted = false;
+		}
 		return true;
 	}
 
 	cpu_fetch_instruction();
 	_cpu_debug();
-	CPU_REG_PC += 1;
+	CPU_REG_PC += 1; // ++ here because we want to print pc for debug
 	cpu_fetch_data();
 	cpu_execute_instruction();
 
-	// if () {
-
-	// }
+	// DEBUG exit after 100 ticks
 	return ctx.cycles < 100;
 	return true;
 }
