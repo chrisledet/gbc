@@ -164,6 +164,9 @@ void cpu_fetch_data() {
 		case MODE_D8:
 			ctx.fetched_data =  cpu_read_signed_n();
 		break;
+		case MODE_D8_TO_REG:
+			ctx.fetched_data = cpu_read_signed_n();
+		break;
 		case MODE_D16:
 			ctx.fetched_data =  cpu_read_nn();
 		break;
@@ -259,7 +262,17 @@ void cpu_execute_instruction() {
 			}
 		break;
 
+		case INSTRUCT_DEC:
+		{
+			ctx.cycles += 1;
+			u16 r = cpu_read_reg(ctx.current_instruction.r_source)-1;
+			cpu_write_reg(ctx.current_instruction.r_source, r);
+			// TODO set flags
+		}
+		break;
+
 		case INSTRUCT_CP:
+		{
 			ctx.cycles += 1;
 			u16 a = cpu_read_reg(ctx.current_instruction.r_source);
 			u16 r = (a - ctx.fetched_data) & 0xf;
@@ -267,6 +280,13 @@ void cpu_execute_instruction() {
 			CPU_SET_FLAG_N(1);
 			CPU_SET_FLAG_H((r > a) & 0xf);
 			CPU_SET_FLAG_C(a < ctx.fetched_data);
+		}
+		break;
+
+		case INSTRUCT_RET:
+			ctx.cycles += 1;
+			cpu_write_reg(CPU_REG_PC, CPU_REG_SP);
+			CPU_REG_SP += 2;
 		break;
 
 		default:
@@ -284,7 +304,7 @@ void _cpu_debug() {
 	// 	ctx.cycles
 	// );
 
-	printf("PC: %04X OPCODE: %2.2X | AF: %02X%02X, BC: %02X%02X, DE: %02X%02X, HL: %02X%02X, SP: %04X, cycles: %d | FLAGS Z=%d N=%d H=%d C=%d\n",
+	printf("PC: %04X OPCODE: %2.2X | AF: %02X%02X, BC: %02X%02X, DE: %02X%02X, HL: %02X%02X, SP: %04X, cycles: %04d | FLAGS Z=%d N=%d H=%d C=%d\n",
 		CPU_REG_PC,
 		ctx.current_opcode,
 		CPU_REG_A, CPU_REG_F, CPU_REG_B, CPU_REG_C, CPU_REG_D, CPU_REG_E, CPU_REG_H, CPU_REG_L, CPU_REG_SP, ctx.cycles,
@@ -292,7 +312,9 @@ void _cpu_debug() {
 }
 
 void cpu_init() {
-	cpu_write_reg16(REG_AF, 0x13);
+	cpu_write_reg16(REG_AF, 0x01B0);
+	cpu_write_reg16(REG_BC, 0x0013);
+	cpu_write_reg16(REG_DE, 0x00D8);
 	cpu_write_reg16(REG_HL, 0x014D);
 	cpu_write_reg16(REG_PC, 0x100);
 	cpu_write_reg16(REG_SP, 0xFFFE);

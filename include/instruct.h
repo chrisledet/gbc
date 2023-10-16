@@ -13,6 +13,8 @@ typedef enum {
 	INSTRUCT_JR,
 	INSTRUCT_RST,
 	INSTRUCT_CP,
+	INSTRUCT_RET,
+	INSTRUCT_DEC,
 } cpu_instruction_type;
 
 typedef enum {
@@ -72,7 +74,7 @@ static cpu_instruction instructions[0x100] = {
 	[0x02] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_BC, REG_A},
 	[0x03] = {INSTRUCT_NONE},
 	[0x04] = {INSTRUCT_NONE},
-	[0x05] = {INSTRUCT_NONE},
+	[0x05] = {INSTRUCT_DEC, MODE_REG, REG_B},
 	[0x06] = {INSTRUCT_LD, MODE_D8_TO_REG, REG_B},
 	[0x07] = {INSTRUCT_NONE},
 	[0x08] = {INSTRUCT_NONE},
@@ -81,7 +83,7 @@ static cpu_instruction instructions[0x100] = {
 	[0x0B] = {INSTRUCT_NONE},
 	[0x0C] = {INSTRUCT_NONE},
 	[0x0D] = {INSTRUCT_NONE},
-	[0x0E] = {INSTRUCT_NONE},
+	[0x0E] = {INSTRUCT_LD, MODE_D8_TO_REG, REG_C},
 	[0x0F] = {INSTRUCT_NONE},
 
 	[0x10] = {INSTRUCT_NONE},
@@ -96,7 +98,7 @@ static cpu_instruction instructions[0x100] = {
 	[0x19] = {INSTRUCT_NONE},
 	[0x1A] = {INSTRUCT_NONE},
 	[0x1B] = {INSTRUCT_NONE},
-	[0x1C] = {INSTRUCT_NONE},
+	[0x1C] = {INSTRUCT_JP, MODE_A16, .flag = FLAG_NZ},
 	[0x1D] = {INSTRUCT_NONE},
 	[0x1E] = {INSTRUCT_NONE},
 	[0x1F] = {INSTRUCT_NONE},
@@ -271,7 +273,7 @@ static cpu_instruction instructions[0x100] = {
 	[0xBE] = {INSTRUCT_NONE},
 	[0xBF] = {INSTRUCT_NONE},
 
-	[0xC0] = {INSTRUCT_NONE},
+	[0xC0] = {INSTRUCT_RET, MODE_NONE},
 	[0xC1] = {INSTRUCT_NONE},
 	[0xC2] = {INSTRUCT_JP, MODE_A16, .flag = FLAG_NZ},
 	[0xC3] = {INSTRUCT_JP, MODE_A16},
