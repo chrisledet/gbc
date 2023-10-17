@@ -28,6 +28,15 @@ void mbc_init(const cart_context *cart_ctx) {
 		memcpy(&ctx.memory[ROM_BANK_SIZE], &cart_ctx->rom_data[ROM_BANK_SIZE], ROM_BANK_SIZE);
 	}
 
+	// 0x01 - 
+	u8 ram_bank_count = cart_ctx->header->ram_size;
+	if (ram_bank_count > 0) {
+		if (ram_bank_count >= 3) {
+			ram_bank_count = 4;
+		}
+		ctx.ram_banks = malloc(0x2000 * ram_bank_count);
+	}
+
 	switch(cart_ctx->header->type) {
 		case 0x00:
 		case 0x08:
@@ -79,7 +88,6 @@ void mbc_init(const cart_context *cart_ctx) {
 	}
 }
 
-
 void mbc_switch_rom_bank(u8 n) {
 	if (n == 0) {
 		n = 1;
@@ -95,4 +103,21 @@ void mbc_switch_rom_bank(u8 n) {
 	}
 
 	memcpy(&ctx.memory[0x4000], &cart_ctx->rom_data[n * ROM_BANK_SIZE], ROM_BANK_SIZE);
+}
+
+void mbc_switch_ram_bank(u8 n) {
+	if (n == 0) {
+		n = 1;
+	}
+	else if (n >= 32) {
+		printf("ERR: INVALID ROM BANK: %d\n", n);
+	}
+
+	cart_context* cart_ctx = get_cart_context();
+	if (cart_ctx == NULL) {
+		printf("ERR: NO CART LOADED!\n");
+		return;
+	}
+
+	printf("ERR: ram bank switch NOT IMPLEMENTED\n");
 }

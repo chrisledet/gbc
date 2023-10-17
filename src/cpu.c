@@ -75,20 +75,22 @@ u16 cpu_read_reg16(cpu_register r) {
 	if (reg16ptr != NULL) {
 		return REVERSE(*reg16ptr);
 	}
-	return 0;
-}
-
-void cpu_write_reg(cpu_register r, u16 v) {
-	u8* reg8ptr = cpu_reg8_ptr(r);
-	if (reg8ptr != NULL) {
-		*reg8ptr = v & 0xff;
-	}
+	return cpu_read_reg(r);
 }
 
 void cpu_write_reg16(cpu_register r, u16 v) {
 	u16* reg16ptr = cpu_reg16_ptr(r);
 	if (reg16ptr != NULL) {
 		*reg16ptr = v;
+	}
+}
+
+void cpu_write_reg(cpu_register r, u8 v) {
+	u8* reg8ptr = cpu_reg8_ptr(r);
+	if (reg8ptr != NULL) {
+		*reg8ptr = v;
+	} else {
+		cpu_write_reg16(r, v);
 	}
 }
 
@@ -171,18 +173,44 @@ void cpu_fetch_data() {
 			ctx.fetched_data =  cpu_read_nn();
 		break;
 		case MODE_REG:
-			ctx.fetched_data = cpu_read_reg(ctx.current_instruction.r_target);
+			ctx.fetched_data = cpu_read_reg16(ctx.current_instruction.r_source);
 		break;
 		case MODE_REG_TO_REG:
-			ctx.fetched_data = cpu_read_reg(ctx.current_instruction.r_source);
-		break;
-		case MODE_ADDR_TO_REG:
-			ctx.fetched_data = bus_read(ctx.current_instruction.r_source);
+			ctx.fetched_data = cpu_read_reg16(ctx.current_instruction.r_source);
 		break;
 		case MODE_REG_TO_ADDR:
-			ctx.fetched_data = cpu_read_reg(ctx.current_instruction.r_source);
+			ctx.fetched_data = cpu_read_reg16(ctx.current_instruction.r_source);
 			ctx.write_bus = true;
-			ctx.write_dst = cpu_read_reg(ctx.current_instruction.r_target);
+			if (ctx.current_instruction.r_target > REG_NONE) {
+				u16 n = cpu_read_reg16(ctx.current_instruction.r_target);
+				ctx.write_dst = n;
+			} else {
+				ctx.write_dst = cpu_read_nn();
+			}
+		break;
+		case MODE_REG_TO_IOADDR:
+			ctx.fetched_data = cpu_read_reg16(ctx.current_instruction.r_source);
+			ctx.write_bus = true;
+			if (ctx.current_instruction.r_target > REG_NONE) {
+				u16 n = cpu_read_reg16(ctx.current_instruction.r_target);
+				ctx.write_dst = 0xFF00+n;
+			} else {
+				ctx.write_dst = cpu_read_nn();
+			}
+		break;
+		case MODE_ADDR_TO_REG:
+		{
+			u16 n = cpu_read_reg16(ctx.current_instruction.r_source);
+			ctx.fetched_data = bus_read(n);
+		}
+		case MODE_IOADDR_TO_REG:
+		{
+			u16 n = cpu_read_reg16(ctx.current_instruction.r_source);
+			ctx.fetched_data = bus_read(0xFF00+n);
+		}
+		break;
+		case MODE_D16_TO_REG:
+			ctx.fetched_data = cpu_read_nn();
 		break;
 		case MODE_PARAM:
 			ctx.fetched_data =  ctx.current_instruction.parameter;
@@ -190,6 +218,22 @@ void cpu_fetch_data() {
 		default:
 			printf("ERR: address mode not supported.\n");
 		break;
+	}
+}
+
+void cpu_execute_ld(cpu_context *ctx) {
+	if (ctx->fetched_data > 0xFF) {
+		if (ctx->write_bus) {
+			bus_write16(ctx->write_dst, ctx->fetched_data);
+		} else {
+			cpu_write_reg16(ctx->current_instruction.r_target, ctx->fetched_data);
+		}
+	} else {
+		if (ctx->write_bus) {
+			bus_write(ctx->write_dst, ctx->fetched_data & 0xff);
+		} else {
+			cpu_write_reg(ctx->current_instruction.r_target, ctx->fetched_data & 0xff);
+		}
 	}
 }
 
@@ -204,39 +248,33 @@ void cpu_execute_instruction() {
 			ctx.halted = true;
 		break;
 
+		case INSTRUCT_ADD:
+			ctx.cycles += 1;
+			u16 n = cpu_read_reg16(ctx.current_instruction.r_target);
+			cpu_write_reg(ctx.current_instruction.r_target, n + ctx.fetched_data);
+		break;
+
 		case INSTRUCT_LD:
 			ctx.cycles += 1;
-			if (ctx.write_bus) {
-				bus_write(ctx.write_dst, ctx.fetched_data);
-			} else {
-				cpu_write_reg(ctx.current_instruction.r_target, ctx.fetched_data);
-			}
-			break;
+			cpu_execute_ld(&ctx);
+		break;
 
 		case INSTRUCT_LDI:
 			ctx.cycles += 1;
-			if (ctx.write_bus) {
-				bus_write(ctx.write_dst, ctx.fetched_data);
-			} else {
-				cpu_write_reg(ctx.current_instruction.r_target, ctx.fetched_data);
-			}
+			cpu_execute_ld(&ctx);
 			cpu_inc_reg(ctx.current_instruction.r_target);
-			break;
+		break;
 
 		case INSTRUCT_LDD:
 			ctx.cycles += 1;
-			if (ctx.write_bus) {
-				bus_write(ctx.write_dst, ctx.fetched_data);
-			} else {
-				cpu_write_reg(ctx.current_instruction.r_target, ctx.fetched_data);
-			}
+			cpu_execute_ld(&ctx);
 			cpu_dec_reg(ctx.current_instruction.r_target);
 		break;
 
 		case INSTRUCT_RST:
 			ctx.cycles += 4;
 			CPU_REG_SP -= 2;
-			cpu_write_reg(REG_SP, CPU_REG_PC);
+			cpu_write_reg16(REG_SP, CPU_REG_PC);
 			CPU_REG_PC = ctx.fetched_data;
 		break;
 
@@ -265,8 +303,13 @@ void cpu_execute_instruction() {
 		case INSTRUCT_DEC:
 		{
 			ctx.cycles += 1;
-			u16 r = cpu_read_reg(ctx.current_instruction.r_source)-1;
-			cpu_write_reg(ctx.current_instruction.r_source, r);
+			if (ctx.current_instruction.r_source < REG_AF) {
+				u8 r = cpu_read_reg(ctx.current_instruction.r_source)-1;
+				cpu_write_reg(ctx.current_instruction.r_source, r);
+			} else {
+				u16 r = cpu_read_reg16(ctx.current_instruction.r_source) - 1;
+				cpu_write_reg16(ctx.current_instruction.r_source, r);
+			}
 			// TODO set flags
 		}
 		break;
@@ -285,8 +328,18 @@ void cpu_execute_instruction() {
 
 		case INSTRUCT_RET:
 			ctx.cycles += 1;
-			cpu_write_reg(CPU_REG_PC, CPU_REG_SP);
+			cpu_write_reg16(CPU_REG_PC, CPU_REG_SP);
 			CPU_REG_SP += 2;
+		break;
+
+		case INSTRUCT_DI:
+			ctx.cycles += 1;
+			ctx.ime = false;
+		break;
+
+		case INSTRUCT_EI:
+			ctx.cycles += 1;
+			ctx.enable_ime = true;
 		break;
 
 		default:

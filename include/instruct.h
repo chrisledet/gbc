@@ -15,6 +15,8 @@ typedef enum {
 	INSTRUCT_CP,
 	INSTRUCT_RET,
 	INSTRUCT_DEC,
+	INSTRUCT_DI,
+	INSTRUCT_EI,
 } cpu_instruction_type;
 
 typedef enum {
@@ -43,9 +45,11 @@ typedef enum {
 	MODE_REG, // register value
 	MODE_REG_TO_REG, // register to register
 	MODE_ADDR_TO_REG, // reg, $addr
+	MODE_IOADDR_TO_REG, // reg, $addr
 	MODE_D8_TO_REG, // reg, d8
 	MODE_D16_TO_REG, // reg, d8
 	MODE_REG_TO_ADDR, // $addr, reg
+	MODE_REG_TO_IOADDR, // $addr, reg
 	MODE_PARAM, // fixed value
 } cpu_address_mode;
 
@@ -205,7 +209,7 @@ static cpu_instruction instructions[0x100] = {
 	[0x7E] = {INSTRUCT_LD, MODE_ADDR_TO_REG, REG_A, REG_HL},
 	[0x7F] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_A, REG_A},
 
-	[0x80] = {INSTRUCT_NONE},
+	[0x80] = {INSTRUCT_ADD, MODE_REG_TO_REG, REG_A, REG_B},
 	[0x81] = {INSTRUCT_NONE},
 	[0x82] = {INSTRUCT_NONE},
 	[0x83] = {INSTRUCT_NONE},
@@ -307,7 +311,7 @@ static cpu_instruction instructions[0x100] = {
 	[0xDE] = {INSTRUCT_NONE},
 	[0xDF] = {INSTRUCT_RST, MODE_PARAM, .parameter = 0x18},
 
-	[0xE0] = {INSTRUCT_NONE},
+	[0xE0] = {INSTRUCT_LD, MODE_REG_TO_IOADDR, REG_NONE, REG_A},
 	[0xE1] = {INSTRUCT_NONE},
 	[0xE2] = {INSTRUCT_LD, MODE_REG_TO_ADDR, REG_C, REG_A},
 	[0xE3] = {INSTRUCT_NONE},
@@ -316,25 +320,25 @@ static cpu_instruction instructions[0x100] = {
 	[0xE6] = {INSTRUCT_NONE},
 	[0xE7] = {INSTRUCT_RST, MODE_PARAM, .parameter = 0x20},
 	[0xE8] = {INSTRUCT_NONE},
-	[0xE9] = {INSTRUCT_JP, MODE_REG, REG_HL},
-	[0xEA] = {INSTRUCT_LD, MODE_REG_TO_ADDR},
+	[0xE9] = {INSTRUCT_JP, MODE_REG, REG_NONE, REG_HL},
+	[0xEA] = {INSTRUCT_LD, MODE_REG_TO_ADDR, REG_NONE, REG_A},
 	[0xEB] = {INSTRUCT_NONE},
 	[0xEC] = {INSTRUCT_NONE},
 	[0xED] = {INSTRUCT_NONE},
 	[0xEE] = {INSTRUCT_NONE},
 	[0xEF] = {INSTRUCT_RST, MODE_PARAM, .parameter = 0x28},
 
-	[0xF0] = {INSTRUCT_NONE},
+	[0xF0] = {INSTRUCT_LD, MODE_IOADDR_TO_REG, REG_A},
 	[0xF1] = {INSTRUCT_NONE},
 	[0xF2] = {INSTRUCT_LD, MODE_ADDR_TO_REG, REG_A, REG_C},
-	[0xF3] = {INSTRUCT_NONE},
+	[0xF3] = {INSTRUCT_DI, MODE_NONE},
 	[0xF4] = {INSTRUCT_NONE},
 	[0xF5] = {INSTRUCT_NONE},
 	[0xF6] = {INSTRUCT_NONE},
 	[0xF7] = {INSTRUCT_RST, MODE_PARAM, .parameter = 0x30},
 	[0xF8] = {INSTRUCT_NONE},
-	[0xF9] = {INSTRUCT_NONE},
-	[0xFA] = {INSTRUCT_NONE},
+	[0xF9] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_HL, REG_SP},
+	[0xFA] = {INSTRUCT_LD, MODE_ADDR_TO_REG, REG_NONE, REG_A},
 	[0xFB] = {INSTRUCT_NONE},
 	[0xFC] = {INSTRUCT_NONE},
 	[0xFD] = {INSTRUCT_NONE},

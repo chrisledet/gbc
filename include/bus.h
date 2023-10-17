@@ -4,7 +4,6 @@
 #include "common.h"
 
 // 16-bit address bus
-
 // 0x0000-0x7FFF 	 : PROGRAM DATA
 	// 0x0000-0x3FFF 	- ROM BANK 0
 	// 0x4000-0x7FFF 	- ROM BANK 1 - Switchable
@@ -27,3 +26,4 @@ void bus_init(const cart_context* cart_ctx);
 u8 bus_read(u16 addr);
 u16 bus_read16(u16 addr);
 void bus_write(u16 addr, u8 val);
+void bus_write16(u16 addr, u16 val);

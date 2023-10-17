@@ -34,6 +34,7 @@ typedef struct {
 	u16 write_dst; // bus address to write to
 
 	bool ime;
+	bool enable_ime;
 	u8 interupt_flags;
 } cpu_context;
 

@@ -24,10 +24,15 @@ typedef enum {
 typedef struct {
 	MBC_TYPE type;
 	u8 bank_idx;
-	u16* memory;
+	u8* memory;
+	u8* ram_banks;
 } mbc_context;
 
 mbc_context* get_mbc_context();
 void mbc_init(const cart_context *cart_ctx);
 bool mbc_is_valid(u8 idx);
 void mbc_switch_rom_bank(u8 num);
+void mbc_switch_ram_bank(u8 num);
+
+//void mbc_read_ram(u16 address);
+//void mbc_write_ram(u8 v);
