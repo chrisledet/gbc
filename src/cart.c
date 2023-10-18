@@ -26,7 +26,7 @@ bool cart_load(const char *cart_filepath) {
 	ctx.filepath = cart_filepath;
 
     FILE *file;
-    errno_t ferr = fopen_s(&file, cart_filepath, "r");
+    int ferr = fopen_s(&file, cart_filepath, "r");
     if (ferr != 0 && !file) {
         perror("Failed to open file.");
         return false;
@@ -44,7 +44,7 @@ bool cart_load(const char *cart_filepath) {
 
     rewind(file);
     const size_t fread_rc = fread(ctx.rom_data, ctx.rom_size, 1, file);
-    const last_read = ftell(file);
+    const u32 last_read = ftell(file);
     fclose(file);
     // still confused if rc is supppose to be 1 or not
     // if (fread_rc == 1) {
