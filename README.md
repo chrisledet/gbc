@@ -1,6 +1,6 @@
 # gbc
 
-GameBoy Color emulator
+Game Boy Color emulator
 
 ## Requirements
 

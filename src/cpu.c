@@ -214,6 +214,14 @@ void cpu_fetch_data() {
 		case MODE_D16_TO_REG:
 			ctx.fetched_data = cpu_read_nn();
 		break;
+		case MODE_IOADDR:
+		{
+			u16 addr = cpu_read_reg16(ctx.current_instruction.r_source);
+			ctx.fetched_data = bus_read(addr);
+			ctx.write_bus = true;
+			ctx.write_dst = addr;
+		}
+		break;
 		case MODE_PARAM:
 			ctx.fetched_data =  ctx.current_instruction.parameter;
 		break;
@@ -302,18 +310,30 @@ void cpu_execute_instruction() {
 			}
 		break;
 
-		case INSTRUCT_DEC:
-		{
+		case INSTRUCT_INC:
 			ctx.cycles += 1;
-			if (ctx.current_instruction.r_source < REG_AF) {
-				u8 r = cpu_read_reg(ctx.current_instruction.r_source)-1;
-				cpu_write_reg(ctx.current_instruction.r_source, r);
+			if (ctx.write_bus) {
+				bus_write(ctx.write_dst, ctx.fetched_data+1);
 			} else {
-				u16 r = cpu_read_reg16(ctx.current_instruction.r_source) - 1;
-				cpu_write_reg16(ctx.current_instruction.r_source, r);
+				cpu_inc_reg(ctx.current_instruction.r_source);
 			}
-			// TODO set flags
-		}
+			if (ctx.current_instruction.r_target > REG_AF) {
+				// TODO: set flags
+				CPU_SET_FLAG_N(0);
+			}
+		break;
+
+		case INSTRUCT_DEC:
+			ctx.cycles += 1;
+			if (ctx.write_bus) {
+				bus_write16(ctx.write_dst, ctx.fetched_data-1);
+			} else {
+				cpu_dec_reg(ctx.current_instruction.r_source);
+			}
+			if (ctx.current_instruction.r_target > REG_AF) {
+				// TODO: set flags
+				CPU_SET_FLAG_N(1);
+			}
 		break;
 
 		case INSTRUCT_CP:
