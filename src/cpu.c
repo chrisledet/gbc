@@ -84,6 +84,8 @@ void cpu_write_reg16(cpu_register r, u16 v) {
 	u16* reg16ptr = cpu_reg16_ptr(r);
 	if (reg16ptr != NULL) {
 		*reg16ptr = v;
+	} else {
+		printf("ERR: invalid 16bit register: %0.02X\n", r);
 	}
 }
 
@@ -159,6 +161,10 @@ void cpu_fetch_instruction() {
 }
 
 void cpu_fetch_data() {
+	ctx.fetched_data = 0;
+	ctx.write_bus = false;
+	ctx.write_dst = 0;
+
 	switch (ctx.current_instruction.mode) {
 		case MODE_NONE:
 		break;
@@ -350,8 +356,13 @@ void cpu_execute_instruction() {
 
 		case INSTRUCT_RET:
 			ctx.cycles += 1;
-			cpu_write_reg16(CPU_REG_PC, CPU_REG_SP);
-			CPU_REG_SP += 2;
+			if (cpu_check_cond(ctx.current_instruction.flag)) {
+				cpu_write_reg16(REG_PC, CPU_REG_SP);
+				CPU_REG_SP += 2;
+			} else {
+				cpu_write_reg16(REG_PC, CPU_REG_SP);
+				CPU_REG_SP += 2;
+			}
 		break;
 
 		case INSTRUCT_DI:
