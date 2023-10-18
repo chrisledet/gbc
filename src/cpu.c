@@ -34,6 +34,8 @@
 #define CPU_SET_FLAG_H(x) CPU_REG_F = ((CPU_REG_F & 0xdf) | (x << 5))
 #define CPU_SET_FLAG_C(x) CPU_REG_F = ((CPU_REG_F & 0xef) | (x << 4))
 
+#define REGISTER_ADDR_KEY1 0xFF4D
+
 static cpu_context ctx;
 
 u16* cpu_reg16_ptr(cpu_register r) {
@@ -340,6 +342,18 @@ void cpu_execute_instruction() {
 		case INSTRUCT_EI:
 			ctx.cycles += 1;
 			ctx.enable_ime = true;
+		break;
+
+		case INSTRUCT_STOP:
+			ctx.cycles += 2;
+			// only supported with CGB
+			if (bus_read(REGISTER_ADDR_KEY1) & 0x1) {
+				if (bus_read(REGISTER_ADDR_KEY1) & 0x80) {
+					bus_write(REGISTER_ADDR_KEY1, 0);
+				} else {
+					bus_write(REGISTER_ADDR_KEY1, 0x80);
+				}
+			}
 		break;
 
 		default:

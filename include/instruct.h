@@ -17,6 +17,7 @@ typedef enum {
 	INSTRUCT_DEC,
 	INSTRUCT_DI,
 	INSTRUCT_EI,
+	INSTRUCT_STOP,
 } cpu_instruction_type;
 
 typedef enum {
@@ -90,7 +91,7 @@ static cpu_instruction instructions[0x100] = {
 	[0x0E] = {INSTRUCT_LD, MODE_D8_TO_REG, REG_C},
 	[0x0F] = {INSTRUCT_NONE},
 
-	[0x10] = {INSTRUCT_NONE},
+	[0x10] = {INSTRUCT_STOP},
 	[0x11] = {INSTRUCT_LD, MODE_D16, REG_DE},
 	[0x12] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_DE, REG_A},
 	[0x13] = {INSTRUCT_NONE},
