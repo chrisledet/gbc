@@ -28,7 +28,7 @@ void mbc_init(const cart_context *cart_ctx) {
 		memcpy(&ctx.memory[ROM_BANK_SIZE], &cart_ctx->rom_data[ROM_BANK_SIZE], ROM_BANK_SIZE);
 	}
 
-	// 0x01 - 
+	// 0x01 -
 	u8 ram_bank_count = cart_ctx->header->ram_size;
 	if (ram_bank_count > 0) {
 		if (ram_bank_count >= 3) {
@@ -41,7 +41,7 @@ void mbc_init(const cart_context *cart_ctx) {
 		case 0x00:
 		case 0x08:
 		case 0x09:
-			ctx.type = MBC_NONE;
+			ctx.type = MBC_ROM_ONLY;
 		break;
 		case 0x01:
 		case 0x02:

@@ -8,8 +8,7 @@
 #define RAM_BANK_SIZE 0x2000
 
 typedef enum {
-	MBC_NOT_SUPPORTED,
-	MBC_NONE,
+	MBC_ROM_ONLY,
 	MBC_MBC1,
 	MBC_MBC2,
 	MBC_MMC1,
@@ -19,13 +18,14 @@ typedef enum {
 	MBC_MBC6,
 	MBC_MBC7,
 	MBC_MMM1,
+	MBC_NOT_SUPPORTED,
 } MBC_TYPE;
 
 typedef struct {
 	MBC_TYPE type;
 	u8 bank_idx;
-	u8* memory;
-	u8* ram_banks;
+	u8 *memory;
+	u8 *ram_banks;
 } mbc_context;
 
 mbc_context* get_mbc_context();

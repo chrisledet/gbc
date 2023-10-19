@@ -8,21 +8,21 @@
 
 
 typedef union {
-	u16 val;
 	struct {
 		u8 l;
 		u8 h;
 	} bytes;
-} cpu_r16;
+	u16 val;
+} r16;
 
 typedef struct {
 	struct {
-		cpu_r16 AF;
-		cpu_r16 BC;
-		cpu_r16 DE;
-		cpu_r16 HL;
-		cpu_r16 PC;
-		cpu_r16 SP;
+		r16 AF;
+		r16 BC;
+		r16 DE;
+		r16 HL;
+		u16 PC;
+		u16 SP;
 	} registers;
 	u8 current_opcode;
 	cpu_instruction current_instruction;
