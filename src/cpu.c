@@ -21,8 +21,6 @@
 #define CPU_REG_BC ctx.registers.BC.val
 #define CPU_REG_DE ctx.registers.DE.val
 #define CPU_REG_HL ctx.registers.HL.val
-#define CPU_REG_PC ctx.registers.PC
-#define CPU_REG_SP ctx.registers.SP
 
 #define CPU_FLAG_Z BIT(CPU_REG_F, 7)
 #define CPU_FLAG_N BIT(CPU_REG_F, 6)
@@ -44,8 +42,6 @@ u16* cpu_reg16_ptr(cpu_register r) {
         case REG_BC: return &(CPU_REG_BC);
         case REG_DE: return &(CPU_REG_DE);
         case REG_HL: return &(CPU_REG_HL);
-        case REG_PC: return &(CPU_REG_PC);
-        case REG_SP: return &(CPU_REG_SP);
         default: return NULL;
     }
 }
@@ -68,6 +64,8 @@ u8 cpu_read_reg(cpu_register r) {
 	u8* reg8ptr = cpu_reg8_ptr(r);
 	if (reg8ptr != NULL) {
 		return *reg8ptr;
+	} else {
+		printf("ERR: invalid 8-bit register: %0.02X\n", r);
 	}
 	return 0;
 }
@@ -75,9 +73,10 @@ u8 cpu_read_reg(cpu_register r) {
 u16 cpu_read_reg16(cpu_register r) {
 	u16* reg16ptr = cpu_reg16_ptr(r);
 	if (reg16ptr != NULL) {
-		return REVERSE(*reg16ptr);
+		return *reg16ptr;
+	} else {
+		return cpu_read_reg(r);
 	}
-	return cpu_read_reg(r);
 }
 
 void cpu_write_reg16(cpu_register r, u16 v) {
@@ -154,23 +153,23 @@ void cpu_execute_ld(cpu_context *ctx) {
 
 u8 cpu_read_n() {
 	ctx.cycles += 1;
-	return bus_read(CPU_REG_PC++);
+	return bus_read(ctx.registers.PC++);
 }
 
 i8 cpu_read_signed_n() {
 	ctx.cycles += 1;
-	return bus_read(CPU_REG_PC++);
+	return bus_read(ctx.registers.PC++);
 }
 
 u16 cpu_read_nn() {
 	ctx.cycles += 2;
-	u16 nn = bus_read(CPU_REG_PC) | (bus_read(CPU_REG_PC+1) << 8);
-	CPU_REG_PC += 2;
+	u16 nn = bus_read(ctx.registers.PC) | (bus_read(ctx.registers.PC+1) << 8);
+	ctx.registers.PC += 2;
 	return nn;
 }
 
 void cpu_fetch_instruction() {
-	ctx.current_opcode = bus_read(CPU_REG_PC);
+	ctx.current_opcode = bus_read(ctx.registers.PC);
 	ctx.current_instruction = instructions[ctx.current_opcode];
 	ctx.registers.PC += 1;
 
@@ -196,7 +195,7 @@ void cpu_fetch_data() {
 			ctx.fetched_data =  cpu_read_nn();
 		break;
 		case MODE_REG:
-			ctx.fetched_data = cpu_read_reg16(ctx.current_instruction.r_source);
+			ctx.fetched_data = cpu_read_reg16(ctx.current_instruction.r_target);
 		break;
 		case MODE_REG_TO_REG:
 			ctx.fetched_data = cpu_read_reg16(ctx.current_instruction.r_source);
@@ -225,6 +224,7 @@ void cpu_fetch_data() {
 			u16 n = cpu_read_reg16(ctx.current_instruction.r_source);
 			ctx.fetched_data = bus_read(n);
 		}
+		break;
 		case MODE_IOADDR_TO_REG:
 		{
 			u16 n = cpu_read_reg16(ctx.current_instruction.r_source);
@@ -234,7 +234,7 @@ void cpu_fetch_data() {
 		case MODE_D16_TO_REG:
 			ctx.fetched_data = cpu_read_nn();
 		break;
-		case MODE_IOADDR:
+		case MODE_ADDR:
 		{
 			u16 addr = cpu_read_reg16(ctx.current_instruction.r_source);
 			ctx.fetched_data = bus_read(addr);
@@ -276,13 +276,13 @@ void cpu_execute_instruction() {
 		case INSTRUCT_LDI:
 			ctx.cycles += 1;
 			cpu_execute_ld(&ctx);
-			cpu_inc_reg(ctx.current_instruction.r_target);
+			cpu_inc_reg(REG_HL);
 		break;
 
 		case INSTRUCT_LDD:
 			ctx.cycles += 1;
 			cpu_execute_ld(&ctx);
-			cpu_dec_reg(ctx.current_instruction.r_target);
+			cpu_dec_reg(REG_HL);
 		break;
 
 		case INSTRUCT_JP:
@@ -297,40 +297,52 @@ void cpu_execute_instruction() {
 		break;
 
 		case INSTRUCT_JR:
-			ctx.cycles += 1;
 			if (cpu_check_cond(ctx.current_instruction.flag)) {
-				ctx.cycles += 1;
+				ctx.cycles += 3;
 				ctx.registers.PC += ctx.fetched_data;
 			} else {
 				ctx.cycles += 2;
-				ctx.registers.PC += 2;
 			}
 		break;
 
 		case INSTRUCT_INC:
+		{
 			ctx.cycles += 1;
+			bool carry = (ctx.fetched_data & 0x0f) == 0x0f;
+			ctx.fetched_data++;
 			if (ctx.write_bus) {
-				bus_write(ctx.write_dst, ctx.fetched_data+1);
-			} else {
+				bus_write16(ctx.write_dst, ctx.fetched_data);
+			}
+			else {
 				cpu_inc_reg(ctx.current_instruction.r_target);
 			}
-			if (ctx.current_instruction.r_target > REG_AF) {
-				// TODO: set flags
+
+			if (ctx.write_bus || ctx.current_instruction.r_target < REG_AF) {
+				CPU_SET_FLAG_Z(ctx.fetched_data == 0);
 				CPU_SET_FLAG_N(0);
+				CPU_SET_FLAG_H(carry);
 			}
+		}
 		break;
 
 		case INSTRUCT_DEC:
+		{
 			ctx.cycles += 1;
+			ctx.fetched_data--;
+			bool carry = (ctx.fetched_data & 0x0f) == 0x0f;
 			if (ctx.write_bus) {
-				bus_write16(ctx.write_dst, ctx.fetched_data-1);
-			} else {
+				bus_write16(ctx.write_dst, ctx.fetched_data);
+			}
+			else {
 				cpu_dec_reg(ctx.current_instruction.r_target);
 			}
-			if (ctx.current_instruction.r_target > REG_AF) {
-				// TODO: set flags
-				CPU_SET_FLAG_N(1);
+
+			if (ctx.write_bus || ctx.current_instruction.r_target < REG_AF) {
+				CPU_SET_FLAG_Z(ctx.fetched_data == 0);
+				CPU_SET_FLAG_N(0);
+				CPU_SET_FLAG_H(carry);
 			}
+		}
 		break;
 
 		case INSTRUCT_CP:
@@ -398,30 +410,33 @@ void cpu_execute_instruction() {
 	}
 }
 
-void _cpu_debug() {
-	// printf("PC: %2.2X | OPCODE: %2.2X NN: %2.2X | CYCLES: %d\n",
-	// 	CPU_REG_PC-1,
-	// 	ctx.current_opcode,
-	// 	(bus_read(CPU_REG_PC) | (bus_read(CPU_REG_PC+1) << 8)),
-	// 	ctx.cycles
-	// );
-
-	printf("PC: 0x%04X (%2.2X %2.2X %2.2X) | AF: %02X%02X, BC: %02X%02X, DE: %02X%02X, HL: %02X%02X, SP: %04X, cycles: %04d | FLAGS Z=%d N=%d H=%d C=%d\n",
-		ctx.registers.PC-1,
-		ctx.current_opcode,
-		bus_read(ctx.registers.PC),
-		bus_read(ctx.registers.PC+1),
-		CPU_REG_A, CPU_REG_F, CPU_REG_B, CPU_REG_C, CPU_REG_D, CPU_REG_E, CPU_REG_H, CPU_REG_L, CPU_REG_SP, ctx.cycles,
-		CPU_FLAG_Z, CPU_FLAG_N, CPU_FLAG_H, CPU_FLAG_C);
-}
-
 void cpu_init() {
 	cpu_write_reg16(REG_AF, 0x01B0);
 	cpu_write_reg16(REG_BC, 0x0013);
 	cpu_write_reg16(REG_DE, 0x00D8);
 	cpu_write_reg16(REG_HL, 0x014D);
-	cpu_write_reg16(REG_PC, 0x100);
-	cpu_write_reg16(REG_SP, 0xFFFE);
+
+	ctx.registers.PC = 0x100;
+	ctx.registers.SP = 0xFFFE;
+}
+
+void cpu_debug() {
+    // printf("PC: %2.2X | OPCODE: %2.2X NN: %2.2X | CYCLES: %d\n",
+    //  CPU_REG_PC-1,
+    //  ctx.current_opcode,
+    //  (bus_read(CPU_REG_PC) | (bus_read(CPU_REG_PC+1) << 8)),
+    //  ctx.cycles
+    // );
+    // cpu_context *cpu_ctx = get_cpu_context()
+
+    printf("PC: 0x%04X (%02X %02X %02X %02X) | AF: %02X%02X, BC: %02X%02X, DE: %02X%02X, HL: %02X%02X, SP: %04X, cycles: %04d | FLAGS Z=%d N=%d H=%d C=%d\n",
+        ctx.registers.PC,
+        bus_read(ctx.registers.PC),
+        bus_read(ctx.registers.PC+1),
+        bus_read(ctx.registers.PC+2),
+        bus_read(ctx.registers.PC+3),
+        cpu_read_reg(REG_A), cpu_read_reg(REG_F), cpu_read_reg(REG_B), cpu_read_reg(REG_C), cpu_read_reg(REG_D), cpu_read_reg(REG_E), cpu_read_reg(REG_H), cpu_read_reg(REG_L), ctx.registers.SP, ctx.cycles,
+        CPU_FLAG_Z, CPU_FLAG_N, CPU_FLAG_H, CPU_FLAG_C);
 }
 
 bool cpu_step() {
@@ -432,9 +447,10 @@ bool cpu_step() {
 		}
 		return true;
 	}
-
+	if (/*ctx.debug_mode*/ 1) {
+		cpu_debug();
+	}
 	cpu_fetch_instruction();
-	_cpu_debug();
 	cpu_fetch_data();
 	if (ctx.enable_ime) {
 		cpu_execute_instruction();
@@ -443,7 +459,5 @@ bool cpu_step() {
 		cpu_execute_instruction();
 	}
 
-	// DEBUG exit after 100 ticks
-	return ctx.cycles < 100;
 	return true;
 }

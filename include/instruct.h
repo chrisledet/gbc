@@ -48,12 +48,12 @@ typedef enum {
 	MODE_REG, // register value
 	MODE_REG_TO_REG, // register to register
 	MODE_ADDR_TO_REG, // reg, $addr
-	MODE_IOADDR_TO_REG, // reg, $addr
+	MODE_IOADDR_TO_REG, // reg, 0xff00 + $addr
 	MODE_D8_TO_REG, // reg, d8
 	MODE_D16_TO_REG, // reg, d8
 	MODE_REG_TO_ADDR, // $addr, reg
-	MODE_REG_TO_IOADDR, // $addr, reg
-	MODE_IOADDR, // $(reg)
+	MODE_REG_TO_IOADDR, // 0xff00 + $addr, reg
+	MODE_ADDR, // $(reg)
 	MODE_PARAM, // fixed value
 } cpu_address_mode;
 
@@ -97,7 +97,7 @@ static cpu_instruction instructions[0x100] = {
 
 	[0x10] = {INSTRUCT_STOP},
 	[0x11] = {INSTRUCT_LD, MODE_D16, REG_DE, .byte_length = 3},
-	[0x12] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_DE, REG_A},
+	[0x12] = {INSTRUCT_LD, MODE_REG_TO_ADDR, REG_DE, REG_A},
 	[0x13] = {INSTRUCT_INC, MODE_REG, REG_DE},
 	[0x14] = {INSTRUCT_INC, MODE_REG, REG_D},
 	[0x15] = {INSTRUCT_DEC, MODE_REG, REG_D},
@@ -122,7 +122,7 @@ static cpu_instruction instructions[0x100] = {
 	[0x27] = {INSTRUCT_NONE},
 	[0x28] = {INSTRUCT_JR, MODE_D8, .flag = FLAG_Z},
 	[0x29] = {INSTRUCT_NONE},
-	[0x2A] = {INSTRUCT_NONE},
+	[0x2A] = {INSTRUCT_LDI, MODE_ADDR_TO_REG, REG_A, REG_HL},
 	[0x2B] = {INSTRUCT_DEC, MODE_REG, REG_HL},
 	[0x2C] = {INSTRUCT_INC, MODE_REG, REG_L},
 	[0x2D] = {INSTRUCT_DEC, MODE_REG, REG_L},
@@ -133,13 +133,13 @@ static cpu_instruction instructions[0x100] = {
 	[0x31] = {INSTRUCT_LD, MODE_D16_TO_REG, REG_SP, .byte_length = 3},
 	[0x32] = {INSTRUCT_LDD, MODE_REG_TO_ADDR, REG_HL, REG_A},
 	[0x33] = {INSTRUCT_INC, MODE_REG, REG_SP},
-	[0x34] = {INSTRUCT_INC, MODE_IOADDR, REG_NONE, REG_HL},
-	[0x35] = {INSTRUCT_DEC, MODE_IOADDR, REG_NONE, REG_HL},
+	[0x34] = {INSTRUCT_INC, MODE_ADDR, REG_NONE, REG_HL},
+	[0x35] = {INSTRUCT_DEC, MODE_ADDR, REG_NONE, REG_HL},
 	[0x36] = {INSTRUCT_LD, MODE_D8_TO_REG, REG_HL},
 	[0x37] = {INSTRUCT_NONE},
 	[0x38] = {INSTRUCT_JR, MODE_D8, .flag = FLAG_C},
 	[0x39] = {INSTRUCT_NONE},
-	[0x3A] = {INSTRUCT_NONE},
+	[0x3A] = {INSTRUCT_LDD, MODE_ADDR_TO_REG, REG_A, REG_HL},
 	[0x3B] = {INSTRUCT_DEC, MODE_REG, REG_SP},
 	[0x3C] = {INSTRUCT_INC, MODE_REG, REG_A},
 	[0x3D] = {INSTRUCT_DEC, MODE_REG, REG_A},
@@ -318,14 +318,14 @@ static cpu_instruction instructions[0x100] = {
 
 	[0xE0] = {INSTRUCT_LD, MODE_REG_TO_IOADDR, REG_NONE, REG_A, .byte_length = 2},
 	[0xE1] = {INSTRUCT_NONE},
-	[0xE2] = {INSTRUCT_LD, MODE_REG_TO_ADDR, REG_C, REG_A},
+	[0xE2] = {INSTRUCT_LD, MODE_REG_TO_IOADDR, REG_C, REG_A},
 	[0xE3] = {INSTRUCT_NONE},
 	[0xE4] = {INSTRUCT_NONE},
 	[0xE5] = {INSTRUCT_NONE},
 	[0xE6] = {INSTRUCT_NONE},
 	[0xE7] = {INSTRUCT_RST, MODE_PARAM, .parameter = 0x20},
 	[0xE8] = {INSTRUCT_NONE},
-	[0xE9] = {INSTRUCT_JP, MODE_REG, REG_NONE, REG_HL},
+	[0xE9] = {INSTRUCT_JP, MODE_REG, REG_HL},
 	[0xEA] = {INSTRUCT_LD, MODE_REG_TO_ADDR, REG_NONE, REG_A, .byte_length = 3},
 	[0xEB] = {INSTRUCT_NONE},
 	[0xEC] = {INSTRUCT_NONE},
@@ -335,7 +335,7 @@ static cpu_instruction instructions[0x100] = {
 
 	[0xF0] = {INSTRUCT_LD, MODE_IOADDR_TO_REG, REG_A, .byte_length = 2},
 	[0xF1] = {INSTRUCT_NONE},
-	[0xF2] = {INSTRUCT_LD, MODE_ADDR_TO_REG, REG_A, REG_C},
+	[0xF2] = {INSTRUCT_LD, MODE_IOADDR_TO_REG, REG_A, REG_C},
 	[0xF3] = {INSTRUCT_DI, MODE_NONE},
 	[0xF4] = {INSTRUCT_NONE},
 	[0xF5] = {INSTRUCT_NONE},

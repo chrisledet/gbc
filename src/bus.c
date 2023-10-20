@@ -38,6 +38,8 @@ u8 bus_read(u16 addr) {
 
 	if (addr < 0x8000) {
 		// ROM DATA
+		//cart_context* cart_ctx = get_cart_context();
+		//return cart_ctx->rom_data[addr];
 		return mbc_ctx->memory[addr];
 	} else if (addr >= 0xA000 && addr <= 0xBFFF) {
 		// CART RAM
@@ -48,6 +50,12 @@ u8 bus_read(u16 addr) {
 	} else if (addr >= 0xE000 && addr < 0xFF00) {
 		// check echo ram access
 		addr -= 2000;
+	} else if (addr >= 0xFF00 && addr < 0xFF80) {
+		// post registers
+		return mbc_ctx->memory[addr];
+	} else if (addr >= 0xFF80 && addr < 0xFFFE) {
+		// high ram
+		return mbc_ctx->memory[addr];
 	} else {
 		printf("ERR: bus_read not supported at address: %02X\n", addr);
 	}

@@ -96,10 +96,9 @@ void gbc_display_window() {
     SDL_Quit();
 }
 
+
 /*
-
-`gbc_run` Return Codes:
-
+Return Codes:
 | Code | Name                  | Description                   |
 |------|-----------------------|-------------------------------|
 |  0   | EMULATOR_SUCCESS      | Successfully executed.        |
@@ -133,6 +132,9 @@ int gbc_run(const char *rom_filepath) {
         }
 
         ctx.ticks++;
+
+        // DEBUG exit after 100 ticks
+        if (ctx.ticks > 100) return 0;
     }
 
 

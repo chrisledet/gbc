@@ -8,11 +8,11 @@
 
 
 typedef union {
+	u16 val;
 	struct {
 		u8 l;
 		u8 h;
 	} bytes;
-	u16 val;
 } r16;
 
 typedef struct {
