@@ -34,4 +34,6 @@ You should see `gbc` and `SDL3` binaries in the Release directory within build.
 
 - https://gbdev.io/pandocs/single.html
 - https://wiki.libsdl.org/SDL3/SDL_CreateRenderer
-- https://nullprogram.com/blog/2023/01/08/
+- https://github.com/wheremyfoodat/Gameboy-logs
+- https://bitwisecmd.com/
+- GameBoyProgManVer1.1.pdf

@@ -22,6 +22,11 @@
 	// 0xFF00-0xFF7F : IO REGISTERS
 	// 0xFF80-0xFFFE : CPU work / stack RAM
 
+#define MEM_SIZE 0x10000
+#define ROM_BANK_SIZE 0x4000
+#define RAM_BANK_SIZE 0x2000
+#define VRAM_BANK_SIZE 0x2000
+
 void bus_init(const cart_context* cart_ctx);
 u8 bus_read(u16 addr);
 u16 bus_read16(u16 addr);

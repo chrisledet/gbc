@@ -1,11 +1,19 @@
 #pragma once
 
-#include "common.h"
-#include "instruct.h"
+#include <common.h>
+#include <instruct.h>
 
 #include <stdbool.h>
 #include <stdint.h>
 
+
+enum {
+	INTERRUPT_VBLANK 	= 0x1,
+	INTERRUPT_LCD_STAT 	= 0x2,
+	INTERRUPT_TIMER 	= 0x4,
+	INTERRUPT_SERIAL 	= 0x8,
+	INTERRUPT_JOYPAD 	= 0x10,
+};
 
 typedef union {
 	u16 val;
@@ -24,19 +32,24 @@ typedef struct {
 		u16 PC;
 		u16 SP;
 	} registers;
-	u8 current_opcode;
-	cpu_instruction current_instruction;
-	u16 fetched_data;
-	u32 cycles;
 	bool halted;
 	bool stopped;
+	u8 current_opcode;
+	u32 cycles;
+	cpu_instruction current_instruction;
+
+	u16 fetched_data;
 	bool write_bus;
 	u16 write_dst; // bus address to write to
 
 	bool ime;
 	bool enable_ime;
-	u8 interupt_flags;
+	u8 IE; // which interrupts _can_ be called
+	u8 IF; // which interrupts _want_ to be called
 } cpu_context;
 
 void cpu_init();
-bool cpu_step();
+u32 cpu_step();
+void cpu_request_interrupt(u8 interrupt);
+u8 cpu_get_ie_register();
+void cpu_set_ie_register(u8 value);

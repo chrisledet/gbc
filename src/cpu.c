@@ -2,10 +2,9 @@
 
 #include <stdio.h>
 
-#include "bus.h"
-#include "cart.h"
-#include "mbc.h"
-#include "common.h"
+#include <common.h>
+#include <cart.h>
+#include <bus.h>
 
 
 #define CPU_REG_A ctx.registers.AF.bytes.h
@@ -135,18 +134,18 @@ bool cpu_check_cond(cpu_condition_flag flag) {
 	}
 }
 
-void cpu_execute_ld(cpu_context *ctx) {
-	if (ctx->write_bus) {
-		if (ctx->fetched_data > 0xFF) {
-			bus_write16(ctx->write_dst, ctx->fetched_data);
+void cpu_execute_ld() {
+	if (ctx.write_bus) {
+		if (ctx.fetched_data > 0xFF) {
+			bus_write16(ctx.write_dst, ctx.fetched_data);
 		} else {
-			bus_write(ctx->write_dst, ctx->fetched_data & 0xff);
+			bus_write(ctx.write_dst, ctx.fetched_data & 0xff);
 		}
 	} else {
-		if (ctx->current_instruction.r_target >= REG_AF) {
-			cpu_write_reg16(ctx->current_instruction.r_target, ctx->fetched_data);
+		if (ctx.current_instruction.r_target >= REG_AF) {
+			cpu_write_reg16(ctx.current_instruction.r_target, ctx.fetched_data);
 		} else {
-			cpu_write_reg(ctx->current_instruction.r_target, ctx->fetched_data & 0xff);
+			cpu_write_reg(ctx.current_instruction.r_target, ctx.fetched_data & 0xff);
 		}
 	}
 }
@@ -270,18 +269,18 @@ void cpu_execute_instruction() {
 
 		case INSTRUCT_LD:
 			ctx.cycles += 1;
-			cpu_execute_ld(&ctx);
+			cpu_execute_ld();
 		break;
 
 		case INSTRUCT_LDI:
 			ctx.cycles += 1;
-			cpu_execute_ld(&ctx);
+			cpu_execute_ld();
 			cpu_inc_reg(REG_HL);
 		break;
 
 		case INSTRUCT_LDD:
 			ctx.cycles += 1;
-			cpu_execute_ld(&ctx);
+			cpu_execute_ld();
 			cpu_dec_reg(REG_HL);
 		break;
 
@@ -439,25 +438,107 @@ void cpu_debug() {
         CPU_FLAG_Z, CPU_FLAG_N, CPU_FLAG_H, CPU_FLAG_C);
 }
 
-bool cpu_step() {
+void cpu_execute_interupts() {
+	if (ctx.ime) {
+		if ((ctx.IE & INTERRUPT_VBLANK) && (ctx.IF & INTERRUPT_VBLANK)) {
+			ctx.registers.PC -= 2;
+			ctx.registers.SP = ctx.registers.PC;
+			ctx.registers.PC = 0x40;
+
+			ctx.ime = false;
+			ctx.IF &= ~INTERRUPT_VBLANK;
+			ctx.cycles += 20;
+		}
+		if ((ctx.IE & INTERRUPT_LCD_STAT) && (ctx.IF & INTERRUPT_LCD_STAT)) {
+			ctx.registers.PC -= 2;
+			ctx.registers.SP = ctx.registers.PC;
+			ctx.registers.PC = 0x48;
+
+			ctx.ime = false;
+			ctx.IF &= ~INTERRUPT_LCD_STAT;
+			ctx.cycles += 20;
+		}
+		if ((ctx.IE & INTERRUPT_TIMER) && (ctx.IF & INTERRUPT_TIMER)) {
+			ctx.registers.PC -= 2;
+			ctx.registers.SP = ctx.registers.PC;
+			ctx.registers.PC = 0x50;
+
+			ctx.ime = false;
+			ctx.IF &= ~INTERRUPT_TIMER;
+			ctx.cycles += 20;
+		}
+		if ((ctx.IE & INTERRUPT_SERIAL) && (ctx.IF & INTERRUPT_SERIAL)) {
+			ctx.registers.PC -= 2;
+			ctx.registers.SP = ctx.registers.PC;
+			ctx.registers.PC = 0x58;
+
+			ctx.ime = false;
+			ctx.IF &= ~INTERRUPT_SERIAL;
+			ctx.cycles += 20;
+		}
+		if ((ctx.IE & INTERRUPT_JOYPAD) && (ctx.IF & INTERRUPT_JOYPAD)) {
+			ctx.registers.PC -= 2;
+			ctx.registers.SP = ctx.registers.PC;
+			ctx.registers.PC = 0x60;
+
+			ctx.ime = false;
+			ctx.IF &= ~INTERRUPT_JOYPAD;
+			ctx.cycles += 20;
+		}
+	}
+}
+
+void cpu_update_timers() {
+	// TODO
+}
+
+void cpu_update_graphics() {
+	// TODO
+}
+
+u32 cpu_step() {
+	u32 current_cycles = ctx.cycles;
+
 	if (ctx.halted) {
 		ctx.cycles += 1;
-		if (ctx.interupt_flags) {
+		if (ctx.IF) {
 			ctx.halted = false;
 		}
-		return true;
+		return ctx.cycles - current_cycles;
 	}
+
 	if (/*ctx.debug_mode*/ 1) {
 		cpu_debug();
 	}
-	cpu_fetch_instruction();
-	cpu_fetch_data();
+
 	if (ctx.enable_ime) {
-		cpu_execute_instruction();
 		ctx.ime = true;
-	} else {
-		cpu_execute_instruction();
+		ctx.enable_ime = false;
 	}
 
-	return true;
+	cpu_fetch_instruction();
+	cpu_fetch_data();
+	cpu_execute_instruction();
+
+	if (ctx.ime) {
+		cpu_execute_interupts();
+		ctx.ime = false;
+	}
+
+	cpu_update_timers();
+	cpu_update_graphics();
+
+	return ctx.cycles - current_cycles;
+}
+
+void cpu_request_interrupt(u8 interrupt) {
+	ctx.IF |= interrupt;
+}
+
+u8 cpu_get_ie_register() {
+	return ctx.IE;
+}
+
+void cpu_set_ie_register(u8 value) {
+	ctx.IE = value;
 }
