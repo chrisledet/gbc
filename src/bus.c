@@ -5,7 +5,6 @@
 
 #include <cart.h>
 #include <cpu.h>
-// #include <mbc.h>
 
 // 16-bit address bus
 // 0x0000-0x7FFF 	 : PROGRAM DATA

@@ -41,6 +41,7 @@ u16* cpu_reg16_ptr(cpu_register r) {
         case REG_BC: return &(CPU_REG_BC);
         case REG_DE: return &(CPU_REG_DE);
         case REG_HL: return &(CPU_REG_HL);
+        case REG_SP: return &ctx.registers.SP;
         default: return NULL;
     }
 }
@@ -139,13 +140,13 @@ void cpu_execute_ld() {
 		if (ctx.fetched_data > 0xFF) {
 			bus_write16(ctx.write_dst, ctx.fetched_data);
 		} else {
-			bus_write(ctx.write_dst, ctx.fetched_data & 0xff);
+			bus_write(ctx.write_dst, ctx.fetched_data & 0xFF);
 		}
 	} else {
 		if (ctx.current_instruction.r_target >= REG_AF) {
 			cpu_write_reg16(ctx.current_instruction.r_target, ctx.fetched_data);
 		} else {
-			cpu_write_reg(ctx.current_instruction.r_target, ctx.fetched_data & 0xff);
+			cpu_write_reg(ctx.current_instruction.r_target, ctx.fetched_data & 0xFF);
 		}
 	}
 }
@@ -262,9 +263,148 @@ void cpu_execute_instruction() {
 		break;
 
 		case INSTRUCT_ADD:
-			ctx.cycles += 1;
+		{
 			u16 n = cpu_read_reg16(ctx.current_instruction.r_target);
-			cpu_write_reg(ctx.current_instruction.r_target, n + ctx.fetched_data);
+			u16 r = n + ctx.fetched_data;
+			if (ctx.current_instruction.r_target < REG_AF) {
+				cpu_write_reg(ctx.current_instruction.r_target, r & 0xFF);
+				ctx.cycles += 1;
+			} else {
+				cpu_write_reg16(ctx.current_instruction.r_target, r);
+				ctx.cycles += 2;
+			}
+			CPU_SET_FLAG_Z(r == 0);
+			CPU_SET_FLAG_N(0);
+			CPU_SET_FLAG_H((n & 0xF) + (ctx.fetched_data & 0xF) > 0xF);
+			CPU_SET_FLAG_C(r > 0xFF);
+		}
+		break;
+
+		case INSTRUCT_ADC:
+		{
+			u16 n = cpu_read_reg16(ctx.current_instruction.r_target);
+			u16 r = n + ctx.fetched_data + CPU_FLAG_Z;
+			if (ctx.current_instruction.r_target < REG_AF) {
+				cpu_write_reg(ctx.current_instruction.r_target, r & 0xFF);
+				ctx.cycles += 1;
+			} else {
+				cpu_write_reg16(ctx.current_instruction.r_target, r);
+				ctx.cycles += 2;
+			}
+
+			CPU_SET_FLAG_Z(r == 0);
+			CPU_SET_FLAG_N(0);
+			CPU_SET_FLAG_H(((n & 0xF) + (ctx.fetched_data & 0xF) + (CPU_FLAG_Z & 0xF)) > 0xF);
+			CPU_SET_FLAG_C(r > 0xFF);
+		}
+		break;
+
+		case INSTRUCT_SUB:
+		{
+			u16 n = cpu_read_reg16(ctx.current_instruction.r_target);
+			u16 r = n - ctx.fetched_data;
+			if (ctx.current_instruction.r_target < REG_AF) {
+				cpu_write_reg(ctx.current_instruction.r_target, r & 0xFF);
+				ctx.cycles += 1;
+			} else {
+				cpu_write_reg16(ctx.current_instruction.r_target, r);
+				ctx.cycles += 2;
+			}
+
+			CPU_SET_FLAG_Z(r == 0);
+			CPU_SET_FLAG_N(1);
+			CPU_SET_FLAG_H((n & 0xF) < (ctx.fetched_data & 0xF));
+			CPU_SET_FLAG_C(n < ctx.fetched_data);
+		}
+		break;
+
+		case INSTRUCT_SBC:
+		{
+			u16 n = cpu_read_reg16(ctx.current_instruction.r_target);
+			u16 r = n - ctx.fetched_data - CPU_FLAG_Z;
+			if (ctx.current_instruction.r_target < REG_AF) {
+				cpu_write_reg(ctx.current_instruction.r_target, r & 0xFF);
+				ctx.cycles += 1;
+			} else {
+				cpu_write_reg16(ctx.current_instruction.r_target, r);
+				ctx.cycles += 2;
+			}
+
+			CPU_SET_FLAG_Z(r == 0);
+			CPU_SET_FLAG_N(1);
+			CPU_SET_FLAG_H((n & 0xF) < ((ctx.fetched_data & 0xF) + CPU_FLAG_Z));
+			CPU_SET_FLAG_C(r < ctx.fetched_data);
+		}
+		break;
+
+		case INSTRUCT_AND:
+		{
+			u16 r = cpu_read_reg16(ctx.current_instruction.r_target) & ctx.fetched_data;
+			if (ctx.current_instruction.r_target < REG_AF) {
+				cpu_write_reg(ctx.current_instruction.r_target, r & 0xFF);
+				ctx.cycles += 1;
+			} else {
+				cpu_write_reg16(ctx.current_instruction.r_target, r);
+				ctx.cycles += 2;
+			}
+
+			CPU_SET_FLAG_Z(r == 0);
+			CPU_SET_FLAG_N(0);
+			CPU_SET_FLAG_H(1);
+			CPU_SET_FLAG_C(0);
+		}
+		break;
+
+		case INSTRUCT_XOR:
+		{
+			u16 r = cpu_read_reg16(ctx.current_instruction.r_target) ^ ctx.fetched_data;
+			if (ctx.current_instruction.r_target < REG_AF) {
+				cpu_write_reg(ctx.current_instruction.r_target, r & 0xFF);
+				ctx.cycles += 1;
+			} else {
+				cpu_write_reg16(ctx.current_instruction.r_target, r);
+				ctx.cycles += 2;
+			}
+
+			CPU_SET_FLAG_Z(r == 0);
+			CPU_SET_FLAG_N(0);
+			CPU_SET_FLAG_H(0);
+			CPU_SET_FLAG_C(0);
+		}
+		break;
+
+		case INSTRUCT_OR:
+		{
+			u16 r = cpu_read_reg16(ctx.current_instruction.r_target) | ctx.fetched_data;
+			if (ctx.current_instruction.r_target < REG_AF) {
+				cpu_write_reg(ctx.current_instruction.r_target, r & 0xFF);
+				ctx.cycles += 1;
+			} else {
+				cpu_write_reg16(ctx.current_instruction.r_target, r);
+				ctx.cycles += 2;
+			}
+
+			CPU_SET_FLAG_Z(r == 0);
+			CPU_SET_FLAG_N(0);
+			CPU_SET_FLAG_H(0);
+			CPU_SET_FLAG_C(0);
+		}
+		break;
+
+		case INSTRUCT_CP:
+		{
+			u16 n = cpu_read_reg16(ctx.current_instruction.r_target);
+			u16 r = n - ctx.fetched_data;
+			if (ctx.current_instruction.r_target < REG_AF) {
+				ctx.cycles += 1;
+			} else {
+				ctx.cycles += 2;
+			}
+			CPU_SET_FLAG_Z(r == 0);
+			CPU_SET_FLAG_N(1);
+			CPU_SET_FLAG_H((n & 0xF) < (ctx.fetched_data & 0xF));
+			CPU_SET_FLAG_C(n < ctx.fetched_data);
+		}
 		break;
 
 		case INSTRUCT_LD:
@@ -307,7 +447,7 @@ void cpu_execute_instruction() {
 		case INSTRUCT_INC:
 		{
 			ctx.cycles += 1;
-			bool carry = (ctx.fetched_data & 0x0f) == 0x0f;
+			bool carry = (ctx.fetched_data & 0xF) == 0xF;
 			ctx.fetched_data++;
 			if (ctx.write_bus) {
 				bus_write16(ctx.write_dst, ctx.fetched_data);
@@ -344,23 +484,11 @@ void cpu_execute_instruction() {
 		}
 		break;
 
-		case INSTRUCT_CP:
-		{
-			ctx.cycles += 1;
-			u16 a = cpu_read_reg(ctx.current_instruction.r_source);
-			u16 r = (a - ctx.fetched_data) & 0xf;
-			CPU_SET_FLAG_Z(a == ctx.fetched_data);
-			CPU_SET_FLAG_N(1);
-			CPU_SET_FLAG_H((r > a) & 0xf);
-			CPU_SET_FLAG_C(a < ctx.fetched_data);
-		}
-		break;
-
 		case INSTRUCT_RST:
 			ctx.cycles += 4;
-			bus_write16(ctx.registers.SP, ctx.registers.PC);
 			ctx.registers.SP -= 2;
-			ctx.registers.PC = 0;
+			bus_write16(ctx.registers.SP, ctx.registers.PC);
+			ctx.registers.PC = ctx.fetched_data;
 		break;
 
 		case INSTRUCT_RET:
@@ -374,9 +502,9 @@ void cpu_execute_instruction() {
 		case INSTRUCT_CALL:
 			ctx.cycles += 2;
 			if (cpu_check_cond(ctx.current_instruction.flag)) {
+				ctx.registers.SP -= 2;
 				bus_write16(ctx.registers.SP, ctx.registers.PC);
 				ctx.registers.PC = ctx.fetched_data;
-				ctx.registers.SP -= 2;
 			}
 		break;
 
