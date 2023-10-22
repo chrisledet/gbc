@@ -45,19 +45,40 @@ void bus_init(const cart_context* cart_ctx) {
 		return;
 	}
 
-	ctx.rom_bank = 0;
-	ctx.ram_bank = 0;
-	ctx.vram_bank = 0;
-	ctx.rom = malloc(ROM_BANK_SIZE * 2);
+	u8 rom_bank_count = 1 << (cart_ctx->header->rom_size + 1);
+	ctx.rom = malloc(ROM_BANK_SIZE * rom_bank_count);
+	if (ctx.rom != NULL) {
+		for (u8 i = 0; i < rom_bank_count; i += 1) {
+			memcpy(&ctx.rom[ROM_BANK_SIZE * i], &cart_ctx->rom_data[ROM_BANK_SIZE * i], ROM_BANK_SIZE);
+		}
+	}
+
+	u8 ram_bank_count = 0;
+	switch (cart_ctx->header->ram_size) {
+		case 0x2:
+			ram_bank_count = 1;
+		break;
+		case 0x3:
+			ram_bank_count = 4;
+		break;
+		case 0x4:
+			ram_bank_count = 16;
+		break;
+		case 0x5:
+			ram_bank_count = 8;
+		break;
+		default:
+			ram_bank_count = 0;
+		break;
+	}
+	ctx.ram = malloc(RAM_BANK_SIZE * ram_bank_count);
+
 	ctx.wram = malloc(RAM_BANK_SIZE);
 	ctx.vram = malloc(VRAM_BANK_SIZE * 2);
 	ctx.hram = malloc(0x7F);
-	ctx.ram = malloc(RAM_BANK_SIZE * cart_ctx->header->ram_size);
-
-	if (ctx.rom != NULL) {
-		memcpy(&ctx.rom[0], &cart_ctx->rom_data[0], ROM_BANK_SIZE);
-		memcpy(&ctx.rom[ROM_BANK_SIZE], &cart_ctx->rom_data[ROM_BANK_SIZE], ROM_BANK_SIZE);
-	}
+	ctx.rom_bank = 0;
+	ctx.ram_bank = 0;
+	ctx.vram_bank = 0;
 }
 
 u8 bus_read(u16 addr) {
@@ -69,7 +90,7 @@ u8 bus_read(u16 addr) {
 		return ctx.rom[((ctx.rom_bank+1) * ROM_BANK_SIZE) + (addr - 0x4000)];
 	} else if (addr >= 0xA000 && addr < 0xC000) {
 		// CART RAM
-		return ctx.ram[(ctx.ram_bank * RAM_BANK_SIZE) + (addr - 0xA000)];
+		return /*ram_enabled*/1 ? ctx.ram[(ctx.ram_bank * RAM_BANK_SIZE) + (addr - 0xA000)] : 0xff;
 	} else if (addr >= 0xC000 && addr < 0xE000) {
 		// WORK RAM
 		return ctx.wram[addr - 0xC000];

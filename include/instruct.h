@@ -347,6 +347,6 @@ static cpu_instruction instructions[0x100] = {
 	[0xFB] = {INSTRUCT_EI},
 	[0xFC] = {INSTRUCT_NONE},
 	[0xFD] = {INSTRUCT_NONE},
-	[0xFE] = {INSTRUCT_CP, MODE_D8, .byte_length = 2},
+	[0xFE] = {INSTRUCT_CP, MODE_D8, REG_NONE, REG_A, .byte_length = 2},
 	[0xFF] = {INSTRUCT_RST, MODE_PARAM, .parameter = 0x38},
 };
