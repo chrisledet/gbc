@@ -22,10 +22,15 @@
 	// 0xFF00-0xFF7F : IO REGISTERS
 	// 0xFF80-0xFFFE : CPU work / stack RAM
 
-#define MEM_SIZE 0x10000
-#define ROM_BANK_SIZE 0x4000
-#define RAM_BANK_SIZE 0x2000
-#define VRAM_BANK_SIZE 0x2000
+#define ADDR_JOYPAD 0xFF00
+#define ADDR_SB 0xFF01
+#define ADDR_SC 0xFF02
+#define ADDR_DIV 0xFF04
+#define ADDR_TIMA 0xFF05
+#define ADDR_TMA 0xFF06
+#define ADDR_TAC 0xFF07
+#define ADDR_IF 0xFF0F
+#define ADDR_KEY1 0xFF4D
 
 void bus_init(const cart_context* cart_ctx);
 u8 bus_read(u16 addr);

@@ -3,8 +3,9 @@
 #include <stdio.h>
 
 #include <common.h>
-#include <cart.h>
 #include <bus.h>
+#include <cart.h>
+#include <timer.h>
 
 
 #define CPU_REG_A ctx.registers.AF.bytes.h
@@ -30,8 +31,6 @@
 #define CPU_SET_FLAG_N(x) CPU_REG_F = ((CPU_REG_F & 0xbf) | (x << 6))
 #define CPU_SET_FLAG_H(x) CPU_REG_F = ((CPU_REG_F & 0xdf) | (x << 5))
 #define CPU_SET_FLAG_C(x) CPU_REG_F = ((CPU_REG_F & 0xef) | (x << 4))
-
-#define REGISTER_ADDR_KEY1 0xFF4D
 
 static cpu_context ctx;
 
@@ -241,6 +240,14 @@ void cpu_fetch_data() {
 			ctx.write_bus = true;
 			ctx.write_dst = addr;
 		}
+		break;
+		case MODE_A8_TO_REG:
+			ctx.fetched_data = bus_read(0xFF00 + cpu_read_n());
+		break;
+		case MODE_REG_TO_A8:
+			ctx.fetched_data = cpu_read_n();
+			ctx.write_bus = true;
+			ctx.write_dst = 0xFF00 + ctx.fetched_data;
 		break;
 		case MODE_PARAM:
 			ctx.fetched_data =  ctx.current_instruction.parameter;
@@ -521,11 +528,11 @@ void cpu_execute_instruction() {
 		case INSTRUCT_STOP:
 			ctx.cycles += 2;
 			// only supported with CGB
-			if (bus_read(REGISTER_ADDR_KEY1) & 0x1) {
-				if (bus_read(REGISTER_ADDR_KEY1) & 0x80) {
-					bus_write(REGISTER_ADDR_KEY1, 0);
+			if (bus_read(ADDR_KEY1) & 0x1) {
+				if (bus_read(ADDR_KEY1) & 0x80) {
+					bus_write(ADDR_KEY1, 0);
 				} else {
-					bus_write(REGISTER_ADDR_KEY1, 0x80);
+					bus_write(ADDR_KEY1, 0x80);
 				}
 			}
 		break;
@@ -556,68 +563,67 @@ void cpu_debug() {
     // );
     // cpu_context *cpu_ctx = get_cpu_context()
 
-    printf("PC: 0x%04X (%02X %02X %02X %02X) | AF: %02X%02X, BC: %02X%02X, DE: %02X%02X, HL: %02X%02X, SP: %04X, cycles: %04d | FLAGS Z=%d N=%d H=%d C=%d\n",
+    printf("PC: 0x%04X (%02X %02X %02X %02X) | AF: %02X%02X, BC: %02X%02X, DE: %02X%02X, HL: %02X%02X, SP: %04X, cycles: %04d | FLAGS Z=%d N=%d H=%d C=%d | DIV: %02X | TIMA: %02X | TMA: %02X | TAC: %02X\n",
         ctx.registers.PC,
         bus_read(ctx.registers.PC),
         bus_read(ctx.registers.PC+1),
         bus_read(ctx.registers.PC+2),
         bus_read(ctx.registers.PC+3),
         cpu_read_reg(REG_A), cpu_read_reg(REG_F), cpu_read_reg(REG_B), cpu_read_reg(REG_C), cpu_read_reg(REG_D), cpu_read_reg(REG_E), cpu_read_reg(REG_H), cpu_read_reg(REG_L), ctx.registers.SP, ctx.cycles,
-        CPU_FLAG_Z, CPU_FLAG_N, CPU_FLAG_H, CPU_FLAG_C);
+        CPU_FLAG_Z, CPU_FLAG_N, CPU_FLAG_H, CPU_FLAG_C,
+        timer_read(ADDR_DIV), timer_read(ADDR_TIMA), timer_read(ADDR_TMA), timer_read(ADDR_TAC));
 }
 
 void cpu_execute_interupts() {
 	if (ctx.ime) {
-		if ((ctx.IE & INTERRUPT_VBLANK) && (ctx.IF & INTERRUPT_VBLANK)) {
+		u8 ifs = bus_read(ADDR_IF);
+
+		if ((ctx.IE & INTERRUPT_VBLANK) && (ifs & INTERRUPT_VBLANK)) {
 			ctx.registers.PC -= 2;
 			ctx.registers.SP = ctx.registers.PC;
 			ctx.registers.PC = 0x40;
 
 			ctx.ime = false;
-			ctx.IF &= ~INTERRUPT_VBLANK;
 			ctx.cycles += 20;
+			bus_write(ADDR_IF, ifs & ~INTERRUPT_VBLANK);
 		}
-		if ((ctx.IE & INTERRUPT_LCD_STAT) && (ctx.IF & INTERRUPT_LCD_STAT)) {
+		if ((ctx.IE & INTERRUPT_LCD_STAT) && (ifs & INTERRUPT_LCD_STAT)) {
 			ctx.registers.PC -= 2;
 			ctx.registers.SP = ctx.registers.PC;
 			ctx.registers.PC = 0x48;
 
 			ctx.ime = false;
-			ctx.IF &= ~INTERRUPT_LCD_STAT;
 			ctx.cycles += 20;
+			bus_write(ADDR_IF, ifs & ~INTERRUPT_LCD_STAT);
 		}
-		if ((ctx.IE & INTERRUPT_TIMER) && (ctx.IF & INTERRUPT_TIMER)) {
+		if ((ctx.IE & INTERRUPT_TIMER) && (ifs & INTERRUPT_TIMER)) {
 			ctx.registers.PC -= 2;
 			ctx.registers.SP = ctx.registers.PC;
 			ctx.registers.PC = 0x50;
 
 			ctx.ime = false;
-			ctx.IF &= ~INTERRUPT_TIMER;
 			ctx.cycles += 20;
+			bus_write(ADDR_IF, ifs & ~INTERRUPT_TIMER);
 		}
-		if ((ctx.IE & INTERRUPT_SERIAL) && (ctx.IF & INTERRUPT_SERIAL)) {
+		if ((ctx.IE & INTERRUPT_SERIAL) && (ifs & INTERRUPT_SERIAL)) {
 			ctx.registers.PC -= 2;
 			ctx.registers.SP = ctx.registers.PC;
 			ctx.registers.PC = 0x58;
 
 			ctx.ime = false;
-			ctx.IF &= ~INTERRUPT_SERIAL;
 			ctx.cycles += 20;
+			bus_write(ADDR_IF, ifs & ~INTERRUPT_SERIAL);
 		}
-		if ((ctx.IE & INTERRUPT_JOYPAD) && (ctx.IF & INTERRUPT_JOYPAD)) {
+		if ((ctx.IE & INTERRUPT_JOYPAD) && (ifs & INTERRUPT_JOYPAD)) {
 			ctx.registers.PC -= 2;
 			ctx.registers.SP = ctx.registers.PC;
 			ctx.registers.PC = 0x60;
 
 			ctx.ime = false;
-			ctx.IF &= ~INTERRUPT_JOYPAD;
 			ctx.cycles += 20;
+			bus_write(ADDR_IF, ifs & ~INTERRUPT_SERIAL);
 		}
 	}
-}
-
-void cpu_update_timers() {
-	// TODO
 }
 
 void cpu_update_graphics() {
@@ -653,7 +659,7 @@ u32 cpu_step() {
 		ctx.ime = false;
 	}
 
-	cpu_update_timers();
+	timer_tick(current_cycles * 4);
 	cpu_update_graphics();
 
 	return ctx.cycles - current_cycles;

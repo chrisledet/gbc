@@ -2,10 +2,9 @@
 // #include <stdlib.h>
 
 typedef struct {
-	u16 div;
-	u8 tima;
-	u8 tma;
-	u8 tac;
+	u16 c_div;
+	u8 c_tima;
+	u32 tima_frequency;
 } timer_context;
 
 void timer_init();

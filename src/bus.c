@@ -25,15 +25,22 @@
 	// 0xFF00-0xFF7F : IO REGISTERS
 	// 0xFF80-0xFFFE : CPU work / stack RAM
 
+#define MEM_SIZE 0x10000
+#define ROM_BANK_SIZE 0x4000
+#define RAM_BANK_SIZE 0x2000
+#define VRAM_BANK_SIZE 0x2000
+
 typedef struct {
 	u8 rom_bank;
 	u8 ram_bank;
 	u8 vram_bank;
 	u8* rom;
-	u8* wram;
+	u8* ram; // switchable ram
+	u8* wram; // work ram
 	u8* vram;
-	u8* hram;
-	u8* ram;
+	u8* hram; // high ram
+	u8* hw; // io registers and ports
+	u8 ie; // interrupt enable
 } bus_ctx;
 
 static bus_ctx ctx;
@@ -75,6 +82,7 @@ void bus_init(const cart_context* cart_ctx) {
 	ctx.wram = malloc(RAM_BANK_SIZE);
 	ctx.vram = malloc(VRAM_BANK_SIZE * 2);
 	ctx.hram = malloc(0x7F);
+	ctx.hw = malloc(0xFF);
 	ctx.rom_bank = 0;
 	ctx.ram_bank = 0;
 	ctx.vram_bank = 0;
@@ -97,14 +105,12 @@ u8 bus_read(u16 addr) {
 		// check echo ram access
 		return ctx.wram[addr-0x2000];
 	} else if (addr >= 0xFF00 && addr < 0xFF80) {
-		// post registers
-		// TODO is this right?
-		return ctx.ram[addr];
+		return ctx.hw[addr - 0xFF00];
 	} else if (addr >= 0xFF80 && addr < 0xFFFF) {
 		// high ram
 		return ctx.hram[addr - 0xFF80];
 	} else if (addr == 0xFFFF) {
-		return cpu_get_ie_register();
+		return ctx.ie;
 	} else {
 		printf("ERR: bus_read not supported at address: %02X\n", addr);
 	}
@@ -126,13 +132,13 @@ void bus_write(u16 addr, u8 val) {
 		// cart ram (save progress)
 		ctx.ram[(ctx.ram_bank * RAM_BANK_SIZE) + (addr - 0xA000)] = val;
 	} else if (0xC000 <= addr && addr < 0xE000) {
-		// work ram
 		ctx.ram[addr] = val;
+	} else if (addr >= 0xFF00 && addr < 0xFF80) {
+		ctx.hw[addr - 0xFF00] = val;
 	} else if (addr >= 0xFF80 && addr < 0xFFFF) {
-		// high ram
 		ctx.hram[addr - 0xFF80] = val;
 	} else if (addr == 0xFFFF) {
-		cpu_set_ie_register(val);
+		ctx.ie = val;
 	} else {
 		printf("ERR: bus_write at address: %02X NOT IMPLEMENTED\n", addr);
 	}

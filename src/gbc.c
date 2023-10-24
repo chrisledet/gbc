@@ -88,10 +88,10 @@ int gbc_run(const char *rom_filepath) {
                 ctx.ticks++;
 
                 // DEBUG exit after 100 ticks
-                if (ctx.ticks > 100) {
+                // if (ctx.ticks > 100) {
                     // app_quit = SDL_TRUE;
-                    return 0;
-                }
+                    // return 0;
+                // }
             }
         }
 

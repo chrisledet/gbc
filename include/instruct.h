@@ -52,8 +52,10 @@ typedef enum {
 	MODE_A16, // 16-bit address
 	MODE_REG, // register value
 	MODE_REG_TO_REG, // register to register
+	MODE_REG_TO_A8, // (a8), reg
 	MODE_ADDR_TO_REG, // reg, $addr
 	MODE_IOADDR_TO_REG, // reg, 0xff00 + $addr
+	MODE_A8_TO_REG, // reg, (0xff00 + a8)
 	MODE_D8_TO_REG, // reg, d8
 	MODE_D16_TO_REG, // reg, d8
 	MODE_REG_TO_ADDR, // $addr, reg
@@ -321,7 +323,7 @@ static cpu_instruction instructions[0x100] = {
 	[0xDE] = {INSTRUCT_NONE},
 	[0xDF] = {INSTRUCT_RST, MODE_PARAM, .parameter = 0x18},
 
-	[0xE0] = {INSTRUCT_LD, MODE_REG_TO_IOADDR, REG_NONE, REG_A, .byte_length = 2},
+	[0xE0] = {INSTRUCT_LD, MODE_REG_TO_A8, REG_NONE, REG_A, .byte_length = 2},
 	[0xE1] = {INSTRUCT_NONE},
 	[0xE2] = {INSTRUCT_LD, MODE_REG_TO_IOADDR, REG_C, REG_A},
 	[0xE3] = {INSTRUCT_NONE},
@@ -338,7 +340,7 @@ static cpu_instruction instructions[0x100] = {
 	[0xEE] = {INSTRUCT_NONE},
 	[0xEF] = {INSTRUCT_RST, MODE_PARAM, .parameter = 0x28},
 
-	[0xF0] = {INSTRUCT_LD, MODE_IOADDR_TO_REG, REG_A, .byte_length = 2},
+	[0xF0] = {INSTRUCT_LD, MODE_A8_TO_REG, REG_A, .byte_length = 2},
 	[0xF1] = {INSTRUCT_NONE},
 	[0xF2] = {INSTRUCT_LD, MODE_IOADDR_TO_REG, REG_A, REG_C},
 	[0xF3] = {INSTRUCT_DI},
