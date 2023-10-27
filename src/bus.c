@@ -5,6 +5,7 @@
 
 #include <cart.h>
 #include <cpu.h>
+#include <timer.h>
 
 // 16-bit address bus
 // 0x0000-0x7FFF 	 : PROGRAM DATA
@@ -105,7 +106,18 @@ u8 bus_read(u16 addr) {
 		// check echo ram access
 		return ctx.wram[addr-0x2000];
 	} else if (addr >= 0xFF00 && addr < 0xFF80) {
-		return ctx.hw[addr - 0xFF00];
+		switch (addr) {
+			case ADDR_DIV:
+				return timer_read(ADDR_DIV);
+			case ADDR_TIMA:
+				return timer_read(ADDR_TIMA);
+			case ADDR_TMA:
+				return timer_read(ADDR_TMA);
+			case ADDR_TAC:
+				return timer_read(ADDR_TAC);
+			default:
+				return ctx.hw[addr - 0xFF00];
+		}
 	} else if (addr >= 0xFF80 && addr < 0xFFFF) {
 		// high ram
 		return ctx.hram[addr - 0xFF80];
@@ -123,7 +135,6 @@ u16 bus_read16(u16 addr) {
 }
 
 void bus_write(u16 addr, u8 val) {
-
 	if (addr < 0x8000) {
 		// TODO: ROM / RAM switch
 	} else if (0x8000 <= addr && addr < 0xA000) {
@@ -134,7 +145,23 @@ void bus_write(u16 addr, u8 val) {
 	} else if (0xC000 <= addr && addr < 0xE000) {
 		ctx.ram[addr] = val;
 	} else if (addr >= 0xFF00 && addr < 0xFF80) {
-		ctx.hw[addr - 0xFF00] = val;
+		switch (addr) {
+			case ADDR_DIV:
+				timer_write(ADDR_DIV, val);
+				break;
+			case ADDR_TIMA:
+				timer_write(ADDR_TIMA, val);
+				break;
+			case ADDR_TMA:
+				timer_write(ADDR_TMA, val);
+				break;
+			case ADDR_TAC:
+				timer_write(ADDR_TAC, val);
+				break;
+			default:
+				ctx.hw[addr - 0xFF00] = val;
+				break;
+		}
 	} else if (addr >= 0xFF80 && addr < 0xFFFF) {
 		ctx.hram[addr - 0xFF80] = val;
 	} else if (addr == 0xFFFF) {
@@ -146,5 +173,5 @@ void bus_write(u16 addr, u8 val) {
 
 void bus_write16(u16 addr, u16 val) {
 	bus_write(addr, val & 0xff);
-	bus_write(addr+1, (val << 8));
+	bus_write(addr+1, (val >> 8) & 0xFF);
 }

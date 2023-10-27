@@ -7,14 +7,6 @@
 #include <stdint.h>
 
 
-enum {
-	INTERRUPT_VBLANK 	= 0x1,
-	INTERRUPT_LCD_STAT 	= 0x2,
-	INTERRUPT_TIMER 	= 0x4,
-	INTERRUPT_SERIAL 	= 0x8,
-	INTERRUPT_JOYPAD 	= 0x10,
-};
-
 typedef union {
 	u16 val;
 	struct {
