@@ -10,8 +10,15 @@ Game Boy Color emulator
 
 ## Dependencies
 
-* SDL2 (included)
+* SDL3 (included)
 
+
+## Layout
+
+- externals: third party libraries
+- include: header files for emulator
+- src: source code for emulator
+- test: tests and data
 
 ## Build
 
