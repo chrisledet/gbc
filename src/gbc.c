@@ -93,6 +93,8 @@ int gbc_run(const char *rom_filepath) {
                     // return 0;
                 // }
             }
+
+            cycles_this_update = 0;
         }
 
 

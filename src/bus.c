@@ -42,6 +42,7 @@ typedef struct {
 	u8* hram; // high ram
 	u8* hw; // io registers and ports
 	u8 ie; // interrupt enable
+	bool ram_enabled;
 } bus_ctx;
 
 static bus_ctx ctx;
@@ -98,7 +99,7 @@ u8 bus_read(u16 addr) {
 		return ctx.rom[((ctx.rom_bank+1) * ROM_BANK_SIZE) + (addr - 0x4000)];
 	} else if (addr >= 0xA000 && addr < 0xC000) {
 		// CART RAM
-		return /*ram_enabled*/1 ? ctx.ram[(ctx.ram_bank * RAM_BANK_SIZE) + (addr - 0xA000)] : 0xff;
+		return ctx.ram_enabled ? ctx.ram[(ctx.ram_bank * RAM_BANK_SIZE) + (addr - 0xA000)] : 0xff;
 	} else if (addr >= 0xC000 && addr < 0xE000) {
 		// WORK RAM
 		return ctx.wram[addr - 0xC000];
@@ -135,7 +136,15 @@ u16 bus_read16(u16 addr) {
 }
 
 void bus_write(u16 addr, u8 val) {
-	if (addr < 0x8000) {
+	if (addr < 0x1FFF) {
+
+		// mbc1 logic
+		if (val == 0xA)
+			ctx.ram_enabled = true;
+		else if (!val)
+			ctx.ram_enabled = false;
+
+	} else if (0x2000 <= addr && addr < 0x8000) {
 		// TODO: ROM / RAM switch
 	} else if (0x8000 <= addr && addr < 0xA000) {
 		ctx.vram[(ctx.vram_bank + VRAM_BANK_SIZE) + (addr - 0x8000)];

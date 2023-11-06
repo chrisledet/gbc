@@ -135,7 +135,7 @@ bool cpu_check_cond(cpu_condition_flag flag) {
 }
 
 void cpu_execute_ld() {
-	if (ctx.write_bus) {
+	if (ctx.write_dst) {
 		if (ctx.fetched_data > 0xFF) {
 			bus_write16(ctx.write_dst, ctx.fetched_data);
 		} else {
@@ -173,7 +173,6 @@ void cpu_fetch_instruction() {
 	ctx.registers.PC += 1;
 
 	ctx.fetched_data = 0;
-	ctx.write_bus = false;
 	ctx.write_dst = 0;
 }
 
@@ -184,6 +183,7 @@ void cpu_fetch_data() {
 		case MODE_U8:
 			ctx.fetched_data =  cpu_read_n();
 		break;
+		case MODE_A16:
 		case MODE_U16:
 			ctx.fetched_data =  cpu_read_nn();
 		break;
@@ -208,7 +208,6 @@ void cpu_fetch_data() {
 		break;
 		case MODE_REG_TO_ADDR:
 			ctx.fetched_data = cpu_read_reg16(ctx.current_instruction.r_source);
-			ctx.write_bus = true;
 			if (ctx.current_instruction.r_target) {
 				u16 n = cpu_read_reg16(ctx.current_instruction.r_target);
 				ctx.write_dst = n;
@@ -218,7 +217,6 @@ void cpu_fetch_data() {
 		break;
 		case MODE_REG_TO_IOADDR:
 			ctx.fetched_data = cpu_read_reg16(ctx.current_instruction.r_source);
-			ctx.write_bus = true;
 			if (ctx.current_instruction.r_target) {
 				ctx.write_dst = 0xFF00 + cpu_read_reg16(ctx.current_instruction.r_target);
 			} else {
@@ -241,7 +239,6 @@ void cpu_fetch_data() {
 		case MODE_ADDR: {
 			u16 addr = cpu_read_reg16(ctx.current_instruction.r_source);
 			ctx.fetched_data = bus_read(addr);
-			ctx.write_bus = true;
 			ctx.write_dst = addr;
 		}
 		break;
@@ -250,14 +247,13 @@ void cpu_fetch_data() {
 		break;
 		case MODE_REG_TO_A8:
 			ctx.fetched_data = cpu_read_n();
-			ctx.write_bus = true;
 			ctx.write_dst = 0xFF00 + ctx.fetched_data;
 		break;
 		case MODE_PARAM:
 			ctx.fetched_data =  ctx.current_instruction.parameter;
 		break;
 		default:
-			printf("ERR: address mode not supported.\n");
+			printf("ERR: address mode not supported: %02X\n", ctx.current_instruction.mode);
 		break;
 	}
 }
@@ -447,12 +443,12 @@ void cpu_execute_instruction() {
 			ctx.cycles += 1;
 			bool carry = (ctx.fetched_data & 0xF) == 0xF;
 			ctx.fetched_data++;
-			if (ctx.write_bus)
+			if (ctx.write_dst)
 				bus_write16(ctx.write_dst, ctx.fetched_data);
 			else
 				cpu_inc_reg(ctx.current_instruction.r_target);
 
-			if (ctx.write_bus || ctx.current_instruction.r_target < REG_AF) {
+			if (ctx.write_dst || ctx.current_instruction.r_target < REG_AF) {
 				CPU_SET_FLAG_Z(ctx.fetched_data == 0);
 				CPU_SET_FLAG_N(0);
 				CPU_SET_FLAG_H(carry);
@@ -464,12 +460,12 @@ void cpu_execute_instruction() {
 			ctx.cycles += 1;
 			ctx.fetched_data--;
 			bool carry = (ctx.fetched_data & 0xF) == 0xF;
-			if (ctx.write_bus)
+			if (ctx.write_dst)
 				bus_write16(ctx.write_dst, ctx.fetched_data);
 			else
 				cpu_dec_reg(ctx.current_instruction.r_target);
 
-			if (ctx.write_bus || ctx.current_instruction.r_target < REG_AF) {
+			if (ctx.write_dst || ctx.current_instruction.r_target < REG_AF) {
 				CPU_SET_FLAG_Z(ctx.fetched_data == 0);
 				CPU_SET_FLAG_N(0);
 				CPU_SET_FLAG_H(carry);
@@ -542,16 +538,6 @@ void cpu_execute_instruction() {
 		case INSTRUCT_RLA: {
 			u8 c = (CPU_REG_A & 0x80) >> 7;
 			CPU_REG_A = (CPU_REG_A << 1) + c;
-			// WARN: gb manual says to reset Z but other online sources based it off if reset is zero
-			CPU_REG_F = 0;
-			CPU_SET_FLAG_C(c);
-			ctx.cycles += 2;
-		}
-		break;
-
-		case INSTRUCT_RLC: {
-			u8 c = (ctx.fetched_data & 0x80) >> 7;
-			cpu_write_reg(ctx.current_instruction.r_target, (ctx.fetched_data << 1) + CPU_FLAG_C);
 			// WARN: gb manual says to reset Z but other online sources based it off if reset is zero
 			CPU_REG_F = 0;
 			CPU_SET_FLAG_C(c);
@@ -636,6 +622,156 @@ void cpu_execute_instruction() {
 			CPU_SET_FLAG_C(~CPU_FLAG_C);
 			CPU_SET_FLAG_N(0);
 			ctx.cycles += 1;
+		}
+		break;
+
+		case INSTRUCT_CB_SET: {
+			ctx.fetched_data |= (1 << ctx.current_instruction.parameter);
+			if (ctx.write_dst)
+				bus_write(ctx.write_dst, ctx.fetched_data & 0xff);
+			else
+				cpu_write_reg(ctx.current_instruction.r_target, ctx.fetched_data & 0xff);
+
+			ctx.cycles += 2;
+		}
+		break;
+
+		case INSTRUCT_CB_RES: {
+			ctx.fetched_data &= ~(1 << ctx.current_instruction.parameter);
+			if (ctx.write_dst)
+				bus_write(ctx.write_dst, ctx.fetched_data & 0xff);
+			else
+				cpu_write_reg(ctx.current_instruction.r_target, ctx.fetched_data & 0xff);
+
+			ctx.cycles += 2;
+		}
+		break;
+
+		case INSTRUCT_CB_BIT: {
+			u8 r = (ctx.fetched_data >> ctx.current_instruction.parameter) & (1 << ctx.current_instruction.parameter);
+			CPU_SET_FLAG_Z(r == 0);
+			CPU_SET_FLAG_N(0);
+			CPU_SET_FLAG_H(0);
+			ctx.cycles += 2;
+		}
+		break;
+
+		case INSTRUCT_CB_RLC: {
+			u8 c = (ctx.fetched_data & 0x80) >> 7;
+			u8 r = (ctx.fetched_data << 1) + c;
+			if (ctx.write_dst)
+				bus_write16(ctx.write_dst, r);
+			else
+				cpu_write_reg(ctx.current_instruction.r_target, r);
+
+			CPU_REG_F = 0;
+			CPU_SET_FLAG_Z(r == 0);
+			CPU_SET_FLAG_C(c);
+			ctx.cycles += 2;
+		}
+		break;
+
+		case INSTRUCT_CB_RL: {
+			u8 c = (ctx.fetched_data & 0x80) >> 7;
+			u8 r = (ctx.fetched_data << 1) + CPU_FLAG_C;
+			if (ctx.write_dst)
+				bus_write16(ctx.write_dst, r);
+			else
+				cpu_write_reg(ctx.current_instruction.r_target, r);
+
+			CPU_REG_F = 0;
+			CPU_SET_FLAG_Z(r == 0);
+			CPU_SET_FLAG_C(c);
+			ctx.cycles += 2;
+		}
+		break;
+
+		case INSTRUCT_CB_RR: {
+			u8 c = (ctx.fetched_data & 0x1);
+			u8 r = (CPU_FLAG_C << 7) | (ctx.fetched_data >> 1);
+			if (ctx.write_dst)
+				bus_write16(ctx.write_dst, r);
+			else
+				cpu_write_reg(ctx.current_instruction.r_target, r);
+
+			CPU_REG_F = 0;
+			CPU_SET_FLAG_Z(r == 0);
+			CPU_SET_FLAG_C(c);
+			ctx.cycles += 2;
+		}
+		break;
+
+		case INSTRUCT_CB_RRC: {
+			u8 c = (ctx.fetched_data & 0x1);
+			u8 r = (c << 7) | (ctx.fetched_data >> 1);
+			if (ctx.write_dst)
+				bus_write16(ctx.write_dst, r);
+			else
+				cpu_write_reg(ctx.current_instruction.r_target, r);
+
+			CPU_REG_F = 0;
+			CPU_SET_FLAG_Z(r == 0);
+			CPU_SET_FLAG_C(c);
+			ctx.cycles += 2;
+		}
+		break;
+
+		case INSTRUCT_CB_SLA: {
+			u8 c = (ctx.fetched_data & 0x80) >> 7;
+			u8 r = (ctx.fetched_data << 1);
+			if (ctx.write_dst)
+				bus_write16(ctx.write_dst, r);
+			else
+				cpu_write_reg(ctx.current_instruction.r_target, r);
+
+			CPU_REG_F = 0;
+			CPU_SET_FLAG_Z(r == 0);
+			CPU_SET_FLAG_C(c);
+			ctx.cycles += 2;
+		}
+		break;
+
+		case INSTRUCT_CB_SRA: {
+			u8 c = (ctx.fetched_data & 0x1);
+			u8 r = (ctx.fetched_data & 0x80) | (ctx.fetched_data >> 1);
+			if (ctx.write_dst)
+				bus_write16(ctx.write_dst, r);
+			else
+				cpu_write_reg(ctx.current_instruction.r_target, r);
+
+			CPU_REG_F = 0;
+			CPU_SET_FLAG_Z(r == 0);
+			CPU_SET_FLAG_C(c);
+			ctx.cycles += 2;
+		}
+		break;
+
+		case INSTRUCT_CB_SWAP: {
+			u8 r = (ctx.fetched_data << 4) | (ctx.fetched_data >> 4);
+			if (ctx.write_dst)
+				bus_write16(ctx.write_dst, r);
+			else
+				cpu_write_reg(ctx.current_instruction.r_target, r);
+
+			CPU_REG_F = 0;
+			CPU_SET_FLAG_Z(r == 0);
+			ctx.cycles += 2;
+		}
+		break;
+
+		case INSTRUCT_CB_SRL: {
+			u8 c = (ctx.fetched_data & 0x1);
+			u8 r = ctx.fetched_data >> 1;
+
+			if (ctx.write_dst)
+				bus_write16(ctx.write_dst, r);
+			else
+				cpu_write_reg(ctx.current_instruction.r_target, r);
+
+			CPU_REG_F = 0;
+			CPU_SET_FLAG_Z(r == 0);
+			CPU_SET_FLAG_C(c);
+			ctx.cycles += 2;
 		}
 		break;
 
@@ -734,13 +870,14 @@ void cpu_update_graphics() {
 
 u32 cpu_step() {
 	u32 current_cycles = ctx.cycles;
+	ctx.cycles = 0;
 
 	if (ctx.halted) {
 		ctx.cycles += 1;
 		if (ctx.IF) {
 			ctx.halted = false;
 		}
-		return ctx.cycles - current_cycles;
+		return ctx.cycles;
 	}
 
 	if (/*ctx.debug_mode*/ 1) {
@@ -761,11 +898,11 @@ u32 cpu_step() {
 	cpu_fetch_data();
 	cpu_execute_instruction();
 
-	if (timer_tick(current_cycles * 4))
+	if (timer_tick(ctx.cycles * 4))
 		cpu_request_interrupt(INTERRUPT_TIMER);
 
 	cpu_update_graphics();
-	return ctx.cycles - current_cycles;
+	return ctx.cycles;
 }
 
 void cpu_request_interrupt(u8 i) {
