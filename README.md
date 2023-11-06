@@ -22,14 +22,13 @@ Game Boy Color emulator
 
 ## Build
 
-First generate platform build files
+Run the following commands inside gbc directory:
 
-	mkdir build
-	cd build
-	cmake ..
-	cmake --build . --config Release
+	cmake -S . -B build
+	cmake --build build [--config Release]
 
-You should see `gbc` and `SDL3` binaries in the Release directory within build.
+
+You should see `gbc` and `SDL3` binaries in the Debug (or Release) within build directory.
 
 
 ## Run
