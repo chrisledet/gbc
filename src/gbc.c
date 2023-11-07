@@ -7,9 +7,10 @@
 #include "cart.h"
 #include "cpu.h"
 #include "bus.h"
-// #include "mbc.h"
+#include "gui.h"
 
 #include "SDL.h"
+#include "windows.h"
 
 /*
     gbc:
@@ -20,91 +21,56 @@
         - timer
 */
 
+HANDLE cpu_handle;
+
 static gbc_context ctx;
 
 gbc_context* gbc_get_context() {
     return &ctx;
 }
 
-/*
-Return Codes:
-| Code | Name                  | Description                   |
-|------|-----------------------|-------------------------------|
-|  0   | EMULATOR_SUCCESS      | Successfully executed.        |
-| -1   | CARTRIDGE_LOAD_ERR    | Problem with cartridge file.  |
-| -3   | CPU_ERR               | Failure during CPU execution. |
-| ...  | ...                   | ...                           |
-*/
+void gbc_run_cpu() {
+    ctx.running = true;
+    ctx.ticks = 0;
+    cpu_init();
+
+    u32 MAX_CYCLES = 69905;
+    u32 cycles = 0;
+    while (ctx.running) {
+        while (cycles < MAX_CYCLES) {
+            if (ctx.paused == false) {
+                cycles += cpu_step();
+            } else {
+                SDL_Delay(10/*ms*/); // delay? are we sure?
+            }
+
+            ctx.ticks++;
+        }
+
+        cycles -= MAX_CYCLES;
+    }
+}
+
+
 int gbc_run(const char *rom_filepath) {
+    // load ui
+    gui_init();
+
+    // load cartridge / rom
     if (!cart_load(rom_filepath)) {
         fprintf(stderr, "ERR: cartridge load failure\n");
         return -1;
     }
-
-    // set up cpu
     cart_context *cart_ctx = get_cart_context();
     bus_init(cart_ctx);
-    cpu_init();
-    ctx.running = true;
-    ctx.paused = false;
-    ctx.ticks = 0;
-    const u32 MAX_CYCLES = 69905;
 
-    // gbc_display_window();
+    cpu_handle = (HANDLE)_beginthread(gbc_run_cpu, 0, NULL);
 
-    // display
-    // SDL_Window *window = SDL_CreateWindow(
-    //     "gbc",
-    //     160*2,
-    //     144*2,
-    //     SDL_WINDOW_RESIZABLE
-    // );
-    // SDL_Renderer *renderer = SDL_CreateRenderer(window, NULL, SDL_RENDERER_PRESENTVSYNC);
-    // SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
-    // SDL_bool app_quit = SDL_FALSE;
-    // while (!app_quit)
-    // {
+    while (!ctx.quit) {
+        ctx.quit = gui_handle_input() & GUI_QUIT;
+        SDL_Delay(100/*ms*/);
+        gui_tick();
+    }
 
-    //     SDL_Event event;
-    //     while (SDL_PollEvent(&event))
-    //     {
-    //         switch (event.type)
-    //         {
-    //             case SDL_EVENT_QUIT:
-    //                 app_quit = SDL_TRUE;
-    //                 break;
-    //         }
-    //     }
-
-        u32 cycles_this_update = 0;
-        while (ctx.running) {
-            while (cycles_this_update < MAX_CYCLES) {
-                if (ctx.paused == false) {
-                    cycles_this_update += cpu_step();
-                } else {
-                    SDL_Delay(10/*ms*/); // delay? are we sure?
-                }
-
-                ctx.ticks++;
-
-                // DEBUG exit after 100 ticks
-                // if (ctx.ticks > 100) {
-                    // app_quit = SDL_TRUE;
-                    // return 0;
-                // }
-            }
-
-            cycles_this_update = 0;
-        }
-
-
-        // SDL_RenderClear(renderer);
-        // SDL_RenderPresent(renderer);
-    // }
-
-    // SDL_DestroyRenderer(renderer);
-    // SDL_DestroyWindow(window);
-
-    // SDL_Quit();
     return 0;
 }

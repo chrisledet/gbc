@@ -11,7 +11,6 @@ int main(int argc, const char *argv[])
         return EXIT_FAILURE;
     }
 
-    SDL_Init(SDL_INIT_VIDEO);
 	gbc_run(argv[1]);
 
 	return EXIT_SUCCESS;
