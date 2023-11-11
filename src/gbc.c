@@ -61,6 +61,9 @@ int gbc_run(const char *rom_filepath) {
         fprintf(stderr, "ERR: cartridge load failure\n");
         return -1;
     }
+
+    cart_debug();
+
     cart_context *cart_ctx = get_cart_context();
     bus_init(cart_ctx);
 

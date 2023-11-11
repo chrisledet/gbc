@@ -25,9 +25,8 @@ u8 cart_read(u16 addr) {
 bool cart_load(const char *cart_filepath) {
 	ctx.filepath = cart_filepath;
 
-    FILE *file;
-    int ferr = fopen_s(&file, cart_filepath, "r");
-    if (ferr != 0 && !file) {
+    FILE *file = fopen(cart_filepath, "rb");
+    if (!file) {
         perror("Failed to open file.");
         return false;
     }
@@ -39,6 +38,7 @@ bool cart_load(const char *cart_filepath) {
     ctx.rom_data = malloc(ctx.rom_size);
 	if (ctx.rom_data == NULL) {
 		fprintf(stderr, "memory allocation failed!\n");
+        fclose(file);
 		return false;
 	}
 
@@ -46,10 +46,10 @@ bool cart_load(const char *cart_filepath) {
     const size_t fread_rc = fread(ctx.rom_data, ctx.rom_size, 1, file);
     const u32 last_read = ftell(file);
     fclose(file);
-    // still confused if rc is supppose to be 1 or not
-    // if (fread_rc == 1) {
+
     if (ctx.rom_size != last_read) {
-    	fprintf(stderr, "WARN: cart read wasnt successful: %zu, failed at %lu\n", fread_rc, last_read);
+    	fprintf(stderr, "ERROR: failed to read cartridge data from %s\n", cart_filepath);
+        free(ctx.rom_data);
         return false;
     }
 
@@ -58,18 +58,21 @@ bool cart_load(const char *cart_filepath) {
     ctx.header->game_title[15] = 0; // ensure str termination
 
     if (memcmp(&ctx.rom_data[0x104], scrolling_logo, sizeof(scrolling_logo)) != 0) {
-        fprintf(stderr, "ERR: cart missing logo header)");
+        fprintf(stderr, "ERROR: cartridge missing logo header\n");
+        free(ctx.rom_data);
         return false;
     }
 
     // run checksum
-    uint16_t checksum  = 0;
-    for (uint16_t i = 0x0134; i <= 0x014C; i++) {
+    u16 checksum  = 0;
+    for (u16 i = 0x0134; i <= 0x014C; i++)
     	checksum = checksum - (ctx.rom_data[i] - 1);
-    }
     bool r_checksum = (checksum & 0xFF);
+    printf("DEBUG: CHECKSUM: %2.2X (%s)\n", ctx.header->checksum, r_checksum ? "PASSED" : "FAILED");
+    return r_checksum;
+}
 
-    // debug result
+void cart_debug() {
     printf("CARTRIDGE LOADED:\n");
     printf("\tPATH     : %s\n",    ctx.filepath);
     printf("\tTITLE    : %s\n",    ctx.header->game_title);
@@ -84,6 +87,4 @@ bool cart_load(const char *cart_filepath) {
         ctx.header->entry_point[2],
         ctx.header->entry_point[3]
     );
-    printf("\tCHECKSUM : %2.2X (%s)\n", ctx.header->checksum, r_checksum ? "PASSED" : "FAILED");
-    return r_checksum;
 }

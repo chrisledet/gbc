@@ -316,7 +316,7 @@ static cpu_instruction instructions[0x100] = {
 	[0xBF] = {INSTRUCT_CP, MODE_REG_TO_REG, REG_A, REG_A},
 
 	[0xC0] = {INSTRUCT_RET, .flag = FLAG_NZ},
-	[0xC1] = {INSTRUCT_POP, MODE_ADDR_TO_REG, }, REG_SP,
+	[0xC1] = {INSTRUCT_POP, MODE_ADDR_TO_REG, REG_SP},
 	[0xC2] = {INSTRUCT_JP, MODE_A16, .flag = FLAG_NZ, .byte_length = 3},
 	[0xC3] = {INSTRUCT_JP, MODE_A16, .byte_length = 3},
 	[0xC4] = {INSTRUCT_CALL, MODE_A16, .flag = FLAG_Z, .byte_length = 3},

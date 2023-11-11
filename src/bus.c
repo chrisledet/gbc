@@ -137,17 +137,15 @@ u16 bus_read16(u16 addr) {
 
 void bus_write(u16 addr, u8 val) {
 	if (addr < 0x1FFF) {
-
 		// mbc1 logic
 		if (val == 0xA)
 			ctx.ram_enabled = true;
 		else if (!val)
 			ctx.ram_enabled = false;
-
 	} else if (0x2000 <= addr && addr < 0x8000) {
 		// TODO: ROM / RAM switch
 	} else if (0x8000 <= addr && addr < 0xA000) {
-		ctx.vram[(ctx.vram_bank + VRAM_BANK_SIZE) + (addr - 0x8000)];
+		ctx.vram[(ctx.vram_bank + VRAM_BANK_SIZE) + (addr - 0x8000)] = val;
 	} else if (0xA000 <= addr && addr < 0xC000) {
 		// cart ram (save progress)
 		ctx.ram[(ctx.ram_bank * RAM_BANK_SIZE) + (addr - 0xA000)] = val;
