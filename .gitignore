@@ -53,3 +53,4 @@ dkms.conf
 
 # Build artifacts
 build/
+.DS_Store

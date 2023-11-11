@@ -22,4 +22,4 @@ typedef enum {
 void timer_init();
 u8 timer_read(u16 addr);
 void timer_write(u16 addr, u8 val);
-bool timer_tick();
+bool timer_tick(u8 cycles);
