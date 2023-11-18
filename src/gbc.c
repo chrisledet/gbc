@@ -1,22 +1,14 @@
-#include "gbc.h"
+#include <gbc.h>
 
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <common.h>
 #include <cart.h>
 #include <cpu.h>
 #include <bus.h>
 #include <gui.h>
-
-
-#ifdef __linux__
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_thread.h>
-#elif defined(_WIN32)
 #include <SDL.h>
 #include <SDL_thread.h>
-#endif
 
 /*
     gbc:

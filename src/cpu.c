@@ -64,7 +64,7 @@ u8 cpu_read_reg(cpu_register r) {
 	if (reg8ptr != NULL) {
 		return *reg8ptr;
 	} else {
-		printf("ERR: invalid 8-bit register: %0.02X\n", r);
+		printf("ERR: invalid 8-bit register: %.02X\n", r);
 	}
 	return 0;
 }
@@ -83,7 +83,7 @@ void cpu_write_reg16(cpu_register r, u16 v) {
 	if (reg16ptr != NULL) {
 		*reg16ptr = v;
 	} else {
-		printf("ERR: invalid 16bit register: %0.02X\n", r);
+		printf("ERR: invalid 16bit register: %.02X\n", r);
 	}
 }
 
