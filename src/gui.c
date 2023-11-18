@@ -1,11 +1,6 @@
 #include <gui.h>
 #include <stdio.h>
-
-#ifdef __linux__
-#include <SDL2/SDL.h>
-#elif defined(_WIN32)
 #include <SDL.h>
-#endif
 
 
 typedef struct {
