@@ -169,8 +169,12 @@ u16 cpu_read_nn() {
 
 void cpu_fetch_instruction() {
 	ctx.current_opcode = bus_read(ctx.registers.PC);
-	ctx.current_instruction = instructions[ctx.current_opcode];
 	ctx.registers.PC += 1;
+
+	if (ctx.current_opcode == 0xCB)
+		ctx.current_instruction = instructions[0x100 + bus_read(ctx.registers.PC)];
+	else
+		ctx.current_instruction = instructions[ctx.current_opcode];
 
 	ctx.fetched_data = 0;
 	ctx.write_dst = 0;
@@ -869,7 +873,7 @@ void cpu_update_graphics() {
 }
 
 u32 cpu_step() {
-	u32 current_cycles = ctx.cycles;
+	// u32 current_cycles = ctx.cycles;
 	ctx.cycles = 0;
 
 	if (ctx.halted) {
