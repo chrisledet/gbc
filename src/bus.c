@@ -108,6 +108,8 @@ u8 bus_read(u16 addr) {
 		return ctx.wram[addr-0x2000];
 	} else if (addr >= 0xFE00 && addr < 0xFEFF) {
 		// oam
+		// when OAM blocked return 0xFF;
+		return 0x0;
 	} else if (addr >= 0xFF00 && addr < 0xFF80) {
 		switch (addr) {
 			case ADDR_DIV:
@@ -176,9 +178,7 @@ void bus_write(u16 addr, u8 val) {
 	} else if (addr == 0xFFFF) {
 		ctx.ie = val;
 	} else {
-		// FEA0-FEFF range
-		// when OAM blocked return 0xFF;
-		return 0x0;
+		printf("ERR: bus_write not supported at address: %02X\n", addr);
 	}
 }
 
