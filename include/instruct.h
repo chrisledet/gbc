@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include "common.h"
+#include <common.h>
 
 typedef enum {
 	INSTRUCT_NONE,

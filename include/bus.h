@@ -1,7 +1,7 @@
 #pragma once
 
-#include "cart.h"
-#include "common.h"
+#include <cart.h>
+#include <common.h>
 
 // 16-bit address bus
 // 0x0000-0x7FFF 	 : PROGRAM DATA

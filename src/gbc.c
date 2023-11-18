@@ -3,14 +3,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "common.h"
-#include "cart.h"
-#include "cpu.h"
-#include "bus.h"
-#include "gui.h"
+#include <common.h>
+#include <cart.h>
+#include <cpu.h>
+#include <bus.h>
+#include <gui.h>
 
-#include "SDL.h"
-#include "windows.h"
+
+#ifdef __linux__
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_thread.h>
+#elif defined(_WIN32)
+#include <SDL.h>
+#include <SDL_thread.h>
+#endif
 
 /*
     gbc:
@@ -21,7 +27,9 @@
         - timer
 */
 
-HANDLE cpu_handle;
+// HANDLE cpu_handle;
+
+SDL_Thread *cpu_thread;
 
 static gbc_context ctx;
 
@@ -41,7 +49,7 @@ void gbc_run_cpu() {
             if (ctx.paused == false) {
                 cycles += cpu_step();
             } else {
-                SDL_Delay(10/*ms*/); // delay? are we sure?
+                SDL_Delay(100/*ms*/); // delay? are we sure?
             }
 
             ctx.ticks++;
@@ -67,13 +75,14 @@ int gbc_run(const char *rom_filepath) {
     cart_context *cart_ctx = get_cart_context();
     bus_init(cart_ctx);
 
-    cpu_handle = (HANDLE)_beginthread(gbc_run_cpu, 0, NULL);
+    cpu_thread = SDL_CreateThread(gbc_run_cpu, "cpu", (void*)NULL);
 
     while (!ctx.quit) {
         ctx.quit = gui_handle_input() & GUI_QUIT;
-        SDL_Delay(100/*ms*/);
+        SDL_Delay(10/*ms*/);
         gui_tick();
     }
 
+    gui_shutdown();
     return 0;
 }

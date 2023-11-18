@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "SDL.h"
-#include "gbc.h"
+#include <gbc.h>
 
 
 int main(int argc, const char *argv[])

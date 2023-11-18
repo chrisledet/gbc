@@ -103,9 +103,11 @@ u8 bus_read(u16 addr) {
 	} else if (addr >= 0xC000 && addr < 0xE000) {
 		// WORK RAM
 		return ctx.wram[addr - 0xC000];
-	} else if (addr >= 0xE000 && addr < 0xFF00) {
+	} else if (addr >= 0xE000 && addr < 0xFDFF) {
 		// check echo ram access
 		return ctx.wram[addr-0x2000];
+	} else if (addr >= 0xFE00 && addr < 0xFEFF) {
+		// oam
 	} else if (addr >= 0xFF00 && addr < 0xFF80) {
 		switch (addr) {
 			case ADDR_DIV:
@@ -136,7 +138,7 @@ u16 bus_read16(u16 addr) {
 }
 
 void bus_write(u16 addr, u8 val) {
-	if (addr < 0x1FFF) {
+	if (addr <= 0x1FFF) {
 		// mbc1 logic
 		if (val == 0xA)
 			ctx.ram_enabled = true;
@@ -174,7 +176,9 @@ void bus_write(u16 addr, u8 val) {
 	} else if (addr == 0xFFFF) {
 		ctx.ie = val;
 	} else {
-		printf("ERR: bus_write at address: %02X NOT IMPLEMENTED\n", addr);
+		// FEA0-FEFF range
+		// when OAM blocked return 0xFF;
+		return 0x0;
 	}
 }
 
