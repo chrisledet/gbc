@@ -9,5 +9,11 @@ add_subdirectory(externals)
 set(CMAKE_C_STANDARD 23)
 file(GLOB SOURCES "src/*.c" "include/*.h")
 include_directories(include)
+
 add_executable(gbc ${SOURCES})
-target_link_libraries(${PROJECT_NAME} SDL3::SDL3)
+
+if (TARGET SDL2::SDL2main)
+	target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2main)
+endif()
+
+target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2)
