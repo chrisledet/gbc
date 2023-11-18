@@ -12,12 +12,12 @@ jobs:
     # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
     # You can convert this to a matrix build if you need cross-platform coverage.
     # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-  
+
     name: ${{ matrix.platform.name }}
     runs-on: ${{ matrix.platform.os }}
-		strategy:
-			matrix:
-				platform:
+    strategy:
+      matrix:
+        platform:
         - { name: Windows (mingw32),  os: windows-latest, shell: 'msys2 {0}', msystem: mingw32, msys-env: mingw-w64-i686, artifact: 'SDL-mingw32' }
         - { name: Windows (mingw64),  os: windows-latest, shell: 'msys2 {0}', msystem: mingw64, msys-env: mingw-w64-x86_64, artifact: 'SDL-mingw64' }
         - { name: Windows (clang32),  os: windows-latest, shell: 'msys2 {0}', msystem: clang32, msys-env: mingw-w64-clang-i686, artifact: 'SDL-msys2-clang32' }
