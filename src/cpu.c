@@ -34,6 +34,10 @@
 
 static cpu_context ctx;
 
+cpu_context *cpu_get_context() {
+	return &ctx;
+}
+
 u16* cpu_reg16_ptr(cpu_register r) {
     switch (r) {
         case REG_AF: return &(CPU_REG_AF);

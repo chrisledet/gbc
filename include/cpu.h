@@ -39,7 +39,9 @@ typedef struct {
 	u8 IF; // which interrupts _want_ to be called
 } cpu_context;
 
+
 void cpu_init();
+cpu_context *cpu_get_context();
 u32 cpu_step();
 void cpu_request_interrupt(u8 interrupt);
 u8 cpu_get_ie_register();

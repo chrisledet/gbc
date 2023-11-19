@@ -29,7 +29,7 @@ gbc_context* gbc_get_context() {
     return &ctx;
 }
 
-void gbc_run_cpu() {
+int gbc_run_cpu(void*) {
     ctx.running = true;
     ctx.ticks = 0;
     cpu_init();
@@ -49,32 +49,33 @@ void gbc_run_cpu() {
 
         cycles -= MAX_CYCLES;
     }
+
+    return 0;
 }
 
-
 int gbc_run(const char *rom_filepath) {
-    // load ui
-    gui_init();
-
     // load cartridge / rom
     if (!cart_load(rom_filepath)) {
         fprintf(stderr, "ERR: cartridge load failure\n");
         return -1;
     }
-
     cart_debug();
-
     cart_context *cart_ctx = get_cart_context();
     bus_init(cart_ctx);
 
+    // load ui
+    gui_init();
+
+    // start cpu
     cpu_thread = SDL_CreateThread(gbc_run_cpu, "cpu", (void*)NULL);
 
+    // input loop
     while (!ctx.quit) {
-        ctx.quit = gui_handle_input() & GUI_QUIT;
+        ctx.quit = gui_get_quit();
         SDL_Delay(10/*ms*/);
-        gui_tick();
     }
 
+    // shutdown
     gui_shutdown();
     return 0;
 }

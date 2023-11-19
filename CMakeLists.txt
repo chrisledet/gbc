@@ -16,10 +16,25 @@ else()
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-add_executable(gbc ${SOURCES})
+add_executable(gbc ${SOURCES} main.c)
 
 if (TARGET SDL2::SDL2main)
 	target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2main)
 endif()
 
 target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2)
+
+# # # # # # # # # # # # # # # # # # # # # 
+#        Testing Configuration          #
+# # # # # # # # # # # # # # # # # # # # # 
+
+# Enable testing
+enable_testing()
+
+# Add your test executable
+file(GLOB TESTS "test/*.c")
+add_executable(cpu_tests ${SOURCES} ${TESTS})
+target_link_libraries(cpu_tests SDL2::SDL2)
+
+# Add the test to CTest
+add_test(NAME CPUTest COMMAND cpu_tests)

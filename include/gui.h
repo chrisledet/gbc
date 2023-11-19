@@ -8,6 +8,7 @@ typedef enum {
 void gui_init();
 void gui_tick();
 void gui_shutdown();
-void gui_display_clear();
+void gui_clear();
 u64 gui_get_ticks();
-gui_event gui_handle_input();
+u32 *gui_get_frame_buffer();
+bool gui_get_quit();
