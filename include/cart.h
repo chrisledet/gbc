@@ -30,6 +30,6 @@ typedef struct {
 } cart_context;
 
 cart_context *get_cart_context();
-bool cart_load(const char *cart_filepath);
+bool cart_init(const char *cart_filepath);
 u8 cart_read(u16 addr);
 void cart_debug();

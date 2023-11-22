@@ -22,7 +22,7 @@ u8 cart_read(u16 addr) {
     return ctx.rom_data[addr];
 }
 
-bool cart_load(const char *cart_filepath) {
+bool cart_init(const char *cart_filepath) {
 	ctx.filepath = cart_filepath;
 
     FILE *file = fopen(cart_filepath, "rb");

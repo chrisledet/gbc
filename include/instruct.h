@@ -71,13 +71,13 @@ typedef enum {
 typedef enum {
 	MODE_NONE,
 	MODE_D8,  // 8-bit data
-	MODE_D16, // 16-bit data
 	MODE_U8, // 8-bit unsigned data
 	MODE_U16, // 16-bit unsigned data
 	MODE_A16, // 16-bit address
 	MODE_REG, // register value
 	MODE_REG_TO_REG, // register to register
 	MODE_REG_TO_A8, // (a8), reg
+	MODE_A16_TO_REG, // reg, $a16
 	MODE_ADDR_TO_REG, // reg, $addr
 	MODE_IOADDR_TO_REG, // reg, 0xff00 + $addr
 	MODE_A8_TO_REG, // reg, (0xff00 + a8)
@@ -112,7 +112,7 @@ typedef struct {
 
 static const cpu_instruction instructions[0x200] = {
 	[0x00] = {INSTRUCT_NOP, MODE_NONE},
-	[0x01] = {INSTRUCT_LD, MODE_D16, REG_BC, .byte_length = 3},
+	[0x01] = {INSTRUCT_LD, MODE_U16, REG_BC, .byte_length = 3},
 	[0x02] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_BC, REG_A},
 	[0x03] = {INSTRUCT_INC, MODE_REG, REG_BC},
 	[0x04] = {INSTRUCT_INC, MODE_REG, REG_B},
@@ -126,10 +126,10 @@ static const cpu_instruction instructions[0x200] = {
 	[0x0C] = {INSTRUCT_INC, MODE_REG, REG_C},
 	[0x0D] = {INSTRUCT_DEC, MODE_REG, REG_C},
 	[0x0E] = {INSTRUCT_LD, MODE_U8_TO_REG, REG_C},
-	[0x0F] = {INSTRUCT_RRC},
+	[0x0F] = {INSTRUCT_RRC, MODE_REG, REG_A},
 
 	[0x10] = {INSTRUCT_STOP},
-	[0x11] = {INSTRUCT_LD, MODE_D16, REG_DE, .byte_length = 3},
+	[0x11] = {INSTRUCT_LD, MODE_U16, REG_DE, .byte_length = 3},
 	[0x12] = {INSTRUCT_LD, MODE_REG_TO_ADDR, REG_DE, REG_A},
 	[0x13] = {INSTRUCT_INC, MODE_REG, REG_DE},
 	[0x14] = {INSTRUCT_INC, MODE_REG, REG_D},
@@ -143,10 +143,10 @@ static const cpu_instruction instructions[0x200] = {
 	[0x1C] = {INSTRUCT_INC, MODE_REG, REG_E},
 	[0x1D] = {INSTRUCT_DEC, MODE_REG, REG_E},
 	[0x1E] = {INSTRUCT_LD, MODE_U8_TO_REG, REG_E},
-	[0x1F] = {INSTRUCT_RRA},
+	[0x1F] = {INSTRUCT_RRA, MODE_REG, REG_A},
 
 	[0x20] = {INSTRUCT_JR, MODE_D8, .flag = FLAG_NZ},
-	[0x21] = {INSTRUCT_LD, MODE_D16, REG_HL, .byte_length = 3},
+	[0x21] = {INSTRUCT_LD, MODE_U16, REG_HL, .byte_length = 3},
 	[0x22] = {INSTRUCT_LDI, MODE_REG_TO_ADDR, REG_HL, REG_A},
 	[0x23] = {INSTRUCT_INC, MODE_REG, REG_HL},
 	[0x24] = {INSTRUCT_INC, MODE_REG, REG_H},
@@ -185,7 +185,7 @@ static const cpu_instruction instructions[0x200] = {
 	[0x43] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_B, REG_E},
 	[0x44] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_B, REG_H},
 	[0x45] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_B, REG_L},
-	[0x46] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_B, REG_HL},
+	[0x46] = {INSTRUCT_LD, MODE_ADDR_TO_REG, REG_B, REG_HL},
 	[0x47] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_B, REG_A},
 	[0x48] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_C, REG_B},
 	[0x49] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_C, REG_C},
@@ -193,7 +193,7 @@ static const cpu_instruction instructions[0x200] = {
 	[0x4B] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_C, REG_E},
 	[0x4C] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_C, REG_H},
 	[0x4D] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_C, REG_L},
-	[0x4E] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_C, REG_HL},
+	[0x4E] = {INSTRUCT_LD, MODE_ADDR_TO_REG, REG_C, REG_HL},
 	[0x4F] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_C, REG_A},
 
 	[0x50] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_D, REG_B},
@@ -202,7 +202,7 @@ static const cpu_instruction instructions[0x200] = {
 	[0x53] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_D, REG_E},
 	[0x54] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_D, REG_H},
 	[0x55] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_D, REG_L},
-	[0x56] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_D, REG_HL},
+	[0x56] = {INSTRUCT_LD, MODE_ADDR_TO_REG, REG_D, REG_HL},
 	[0x57] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_D, REG_A},
 	[0x58] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_E, REG_B},
 	[0x59] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_E, REG_C},
@@ -210,7 +210,7 @@ static const cpu_instruction instructions[0x200] = {
 	[0x5B] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_E, REG_E},
 	[0x5C] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_E, REG_H},
 	[0x5D] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_E, REG_L},
-	[0x5E] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_E, REG_HL},
+	[0x5E] = {INSTRUCT_LD, MODE_ADDR_TO_REG, REG_E, REG_HL},
 	[0x5F] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_E, REG_A},
 
 	[0x60] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_H, REG_B},
@@ -219,7 +219,7 @@ static const cpu_instruction instructions[0x200] = {
 	[0x63] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_H, REG_E},
 	[0x64] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_H, REG_H},
 	[0x65] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_H, REG_L},
-	[0x66] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_H, REG_HL},
+	[0x66] = {INSTRUCT_LD, MODE_ADDR_TO_REG, REG_H, REG_HL},
 	[0x67] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_H, REG_A},
 	[0x68] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_L, REG_B},
 	[0x69] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_L, REG_C},
@@ -227,7 +227,7 @@ static const cpu_instruction instructions[0x200] = {
 	[0x6B] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_L, REG_E},
 	[0x6C] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_L, REG_H},
 	[0x6D] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_L, REG_L},
-	[0x6E] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_L, REG_HL},
+	[0x6E] = {INSTRUCT_LD, MODE_ADDR_TO_REG, REG_L, REG_HL},
 	[0x6F] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_L, REG_A},
 
 	[0x70] = {INSTRUCT_LD, MODE_REG_TO_ADDR, REG_HL, REG_B},
@@ -316,10 +316,10 @@ static const cpu_instruction instructions[0x200] = {
 	[0xBF] = {INSTRUCT_CP, MODE_REG_TO_REG, REG_A, REG_A},
 
 	[0xC0] = {INSTRUCT_RET, .flag = FLAG_NZ},
-	[0xC1] = {INSTRUCT_POP, MODE_ADDR_TO_REG, REG_SP},
+	[0xC1] = {INSTRUCT_POP, MODE_ADDR_TO_REG, REG_BC, REG_SP},
 	[0xC2] = {INSTRUCT_JP, MODE_A16, .flag = FLAG_NZ, .byte_length = 3},
 	[0xC3] = {INSTRUCT_JP, MODE_A16, .byte_length = 3},
-	[0xC4] = {INSTRUCT_CALL, MODE_A16, .flag = FLAG_Z, .byte_length = 3},
+	[0xC4] = {INSTRUCT_CALL, MODE_A16, .flag = FLAG_NZ, .byte_length = 3},
 	[0xC5] = {INSTRUCT_PUSH, MODE_REG_TO_ADDR, REG_SP, REG_BC},
 	[0xC6] = {INSTRUCT_ADD, MODE_U8_TO_REG, REG_A},
 	[0xC7] = {INSTRUCT_RST, MODE_PARAM, .parameter = 0x0},
@@ -336,9 +336,9 @@ static const cpu_instruction instructions[0x200] = {
 	[0xD1] = {INSTRUCT_POP, MODE_ADDR_TO_REG, REG_DE, REG_SP},
 	[0xD2] = {INSTRUCT_JP, MODE_A16, .flag = FLAG_NC, .byte_length = 3},
 	[0xD3] = {INSTRUCT_NONE},
-	[0xD4] = {INSTRUCT_CALL, MODE_A16, .flag = FLAG_Z, .byte_length = 3},
+	[0xD4] = {INSTRUCT_CALL, MODE_A16, .flag = FLAG_NC, .byte_length = 3},
 	[0xD5] = {INSTRUCT_PUSH, MODE_REG_TO_ADDR, REG_SP, REG_DE},
-	[0xD6] = {INSTRUCT_SUB, MODE_U8},
+	[0xD6] = {INSTRUCT_SUB, MODE_U8, REG_A},
 	[0xD7] = {INSTRUCT_RST, MODE_PARAM, .parameter = 0x10},
 	[0xD8] = {INSTRUCT_RET, .flag = FLAG_C},
 	[0xD9] = {INSTRUCT_RETI},
@@ -355,7 +355,7 @@ static const cpu_instruction instructions[0x200] = {
 	[0xE3] = {INSTRUCT_NONE},
 	[0xE4] = {INSTRUCT_NONE},
 	[0xE5] = {INSTRUCT_PUSH, MODE_REG_TO_ADDR, REG_SP, REG_HL},
-	[0xE6] = {INSTRUCT_AND, MODE_U8},
+	[0xE6] = {INSTRUCT_AND, MODE_U8, REG_A},
 	[0xE7] = {INSTRUCT_RST, MODE_PARAM, .parameter = 0x20},
 	[0xE8] = {INSTRUCT_ADD, MODE_D8_TO_REG, REG_SP},
 	[0xE9] = {INSTRUCT_JP, MODE_REG, REG_HL},
@@ -375,8 +375,8 @@ static const cpu_instruction instructions[0x200] = {
 	[0xF6] = {INSTRUCT_OR, MODE_U8, REG_A},
 	[0xF7] = {INSTRUCT_RST, MODE_PARAM, .parameter = 0x30},
 	[0xF8] = {INSTRUCT_LD, MODE_D8_TO_REG, REG_HL, REG_SP},
-	[0xF9] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_HL, REG_SP},
-	[0xFA] = {INSTRUCT_LD, MODE_ADDR_TO_REG, REG_NONE, REG_A, .byte_length = 3},
+	[0xF9] = {INSTRUCT_LD, MODE_REG_TO_REG, REG_SP, REG_HL},
+	[0xFA] = {INSTRUCT_LD, MODE_A16_TO_REG, REG_A, .byte_length = 3},
 	[0xFB] = {INSTRUCT_EI},
 	[0xFC] = {INSTRUCT_NONE},
 	[0xFD] = {INSTRUCT_NONE},

@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include <cart.h>
-#include <cpu.h>
+#include <ppu.h>
 #include <timer.h>
 
 // 16-bit address bus
@@ -32,20 +32,18 @@
 #define VRAM_BANK_SIZE 0x2000
 
 typedef struct {
-	u8 rom_bank;
-	u8 ram_bank;
-	u8 vram_bank;
-	u8* rom;
-	u8* ram; // switchable ram
-	u8* wram; // work ram
-	u8* vram;
-	u8* hram; // high ram
-	u8* hw; // io registers and ports
-	u8 ie; // interrupt enable
+	u32 rom_bank;
+	u32 ram_bank;
+	u32 vram_bank;
+	u8 *mem;
+	u8 *rom; // banked rom
+	u8 *ram; // banked ram
+
 	bool ram_enabled;
+	bool dma_transfer;
 } bus_ctx;
 
-static bus_ctx ctx;
+static bus_ctx ctx = { 0 };
 
 void bus_init(const cart_context* cart_ctx) {
 	if (cart_ctx == NULL) {
@@ -53,15 +51,19 @@ void bus_init(const cart_context* cart_ctx) {
 		return;
 	}
 
-	u8 rom_bank_count = 1 << (cart_ctx->header->rom_size + 1);
+	u32 rom_bank_count = 1 << (cart_ctx->header->rom_size + 1);
+	//for (u8 i = 0; i < rom_bank_count; i += 1) {
 	ctx.rom = malloc(ROM_BANK_SIZE * rom_bank_count);
-	if (ctx.rom != NULL) {
-		for (u8 i = 0; i < rom_bank_count; i += 1) {
-			memcpy(&ctx.rom[ROM_BANK_SIZE * i], &cart_ctx->rom_data[ROM_BANK_SIZE * i], ROM_BANK_SIZE);
-		}
-	}
+	memcpy(ctx.rom, &cart_ctx->rom_data[0], ROM_BANK_SIZE * rom_bank_count);
+	//}
 
-	u8 ram_bank_count = 0;
+	//printf("sizeof(cart_ctx->rom_data) = %02X\n", sizeof(&cart_ctx->rom_data));
+	//printf("sizeof(rom) = %02X\n", sizeof(&ctx.rom));
+
+	ctx.mem = calloc(1, MEM_SIZE);
+	memcpy(ctx.mem, &cart_ctx->rom_data[0], ROM_BANK_SIZE * 2);
+
+	u32 ram_bank_count = 0;
 	switch (cart_ctx->header->ram_size) {
 		case 0x2:
 			ram_bank_count = 1;
@@ -79,12 +81,12 @@ void bus_init(const cart_context* cart_ctx) {
 			ram_bank_count = 0;
 		break;
 	}
-	ctx.ram = malloc(RAM_BANK_SIZE * ram_bank_count);
+	ctx.ram = calloc(1, (ram_bank_count ? RAM_BANK_SIZE * ram_bank_count : RAM_BANK_SIZE));
 
-	ctx.wram = malloc(RAM_BANK_SIZE);
-	ctx.vram = malloc(VRAM_BANK_SIZE * 2);
-	ctx.hram = malloc(0x7F);
-	ctx.hw = malloc(0xFF);
+	//ctx.vram = calloc(1, VRAM_BANK_SIZE * 2);
+	//ctx.hram = calloc(1, 0x7F);
+	//ctx.hw = calloc(1, 0xFF);
+	//ctx.oam = calloc(1, 0xA0);
 	ctx.rom_bank = 0;
 	ctx.ram_bank = 0;
 	ctx.vram_bank = 0;
@@ -93,23 +95,34 @@ void bus_init(const cart_context* cart_ctx) {
 u8 bus_read(u16 addr) {
 	if (addr < 0x4000) {
 		// ROM DATA / BANK
-		return ctx.rom[addr];
+		return ctx.mem[addr];
 	} else if (addr >= 0x4000 && addr < 0x8000) {
 		// ROM SWITCHABLE BANK
-		return ctx.rom[((ctx.rom_bank+1) * ROM_BANK_SIZE) + (addr - 0x4000)];
+		if (ctx.rom_bank)
+			return ctx.rom[(ctx.rom_bank+1) * ROM_BANK_SIZE + addr];
+		return ctx.mem[addr];
+	} else if (addr >= 0x8000 && addr < 0xA000) {
+		// LCD RAM
+		// bankable?
+		//return ctx.mem[ctx.vram_bank * VRAM_BANK_SIZE + addr];
+		return ctx.mem[addr];
 	} else if (addr >= 0xA000 && addr < 0xC000) {
 		// CART RAM
-		return ctx.ram_enabled ? ctx.ram[(ctx.ram_bank * RAM_BANK_SIZE) + (addr - 0xA000)] : 0xff;
+		if (!ctx.ram_enabled)
+			return 0xFF;
+		return ctx.mem[addr];
 	} else if (addr >= 0xC000 && addr < 0xE000) {
-		// WORK RAM
-		return ctx.wram[addr - 0xC000];
+		// bankable ram
+		return ctx.mem[addr];
 	} else if (addr >= 0xE000 && addr < 0xFDFF) {
 		// check echo ram access
-		return ctx.wram[addr-0x2000];
+		return ctx.mem[addr-0x2000];
 	} else if (addr >= 0xFE00 && addr < 0xFEFF) {
 		// oam
 		// when OAM blocked return 0xFF;
-		return 0x0;
+		if (ctx.dma_transfer)
+			return 0xFF;
+		return ctx.mem[addr];
 	} else if (addr >= 0xFF00 && addr < 0xFF80) {
 		switch (addr) {
 			case ADDR_DIV:
@@ -120,19 +133,31 @@ u8 bus_read(u16 addr) {
 				return timer_read(ADDR_TMA);
 			case ADDR_TAC:
 				return timer_read(ADDR_TAC);
+			case ADDR_IF:
+				return ctx.mem[addr];
+			break;
+			case ADDR_LCDC:
+				return ctx.mem[addr];
+			break;
+			case ADDR_STAT:
+				return ctx.mem[addr];
+			break;
+			case ADDR_LY:
+				return 0x90;
+			break;
 			default:
-				return ctx.hw[addr - 0xFF00];
+				return ctx.mem[addr];
 		}
 	} else if (addr >= 0xFF80 && addr < 0xFFFF) {
 		// high ram
-		return ctx.hram[addr - 0xFF80];
+		return ctx.mem[addr];
 	} else if (addr == 0xFFFF) {
-		return ctx.ie;
+		return ctx.mem[addr]; // ie
 	} else {
 		printf("ERR: bus_read not supported at address: %02X\n", addr);
 	}
 
-	return 0;
+	return 0xCC;
 }
 
 u16 bus_read16(u16 addr) {
@@ -141,6 +166,7 @@ u16 bus_read16(u16 addr) {
 
 void bus_write(u16 addr, u8 val) {
 	if (addr <= 0x1FFF) {
+		// ROM SPACE
 		// mbc1 logic
 		if (val == 0xA)
 			ctx.ram_enabled = true;
@@ -149,34 +175,59 @@ void bus_write(u16 addr, u8 val) {
 	} else if (0x2000 <= addr && addr < 0x8000) {
 		// TODO: ROM / RAM switch
 	} else if (0x8000 <= addr && addr < 0xA000) {
-		ctx.vram[(ctx.vram_bank + VRAM_BANK_SIZE) + (addr - 0x8000)] = val;
+		//ctx.vram[(ctx.vram_bank + VRAM_BANK_SIZE) + (addr - 0x8000)] = val;
+		ctx.mem[addr] = val;
 	} else if (0xA000 <= addr && addr < 0xC000) {
 		// cart ram (save progress)
-		ctx.ram[(ctx.ram_bank * RAM_BANK_SIZE) + (addr - 0xA000)] = val;
+		// TODO banking
+		//ctx.ram[(ctx.ram_bank * RAM_BANK_SIZE) + (addr - 0xA000)] = val;
+		ctx.mem[addr] = val;
 	} else if (0xC000 <= addr && addr < 0xE000) {
-		ctx.ram[addr] = val;
+		ctx.mem[addr] = val;
+	} else if (addr >= 0xFE00 && addr < 0xFE9F) {
+		ctx.mem[addr] = val;
+	} else if (addr >= 0xFEA0 && addr < 0xFEFF) {
+		// NOT USABLE
 	} else if (addr >= 0xFF00 && addr < 0xFF80) {
 		switch (addr) {
+			case ADDR_JOYPAD:
+				// TODO
+			break;
 			case ADDR_DIV:
 				timer_write(ADDR_DIV, val);
-				break;
+			break;
 			case ADDR_TIMA:
 				timer_write(ADDR_TIMA, val);
-				break;
+			break;
 			case ADDR_TMA:
 				timer_write(ADDR_TMA, val);
-				break;
+			break;
 			case ADDR_TAC:
 				timer_write(ADDR_TAC, val);
-				break;
+			break;
+			case ADDR_IF:
+				ctx.mem[addr] = 0xE0 | val;
+			break;
+			case ADDR_LCDC:
+				ctx.mem[addr] = val;
+			break;
+			case ADDR_STAT:
+				ctx.mem[addr] = val & 0xFC;
+			break;
+			case ADDR_LY:
+			break;
+			case ADDR_DMA_TRANSFER:
+				ctx.dma_transfer = true;
+				ppu_dma_oam_transfer(val);
+			break;
 			default:
-				ctx.hw[addr - 0xFF00] = val;
-				break;
+				ctx.mem[addr] = val;
+			break;
 		}
 	} else if (addr >= 0xFF80 && addr < 0xFFFF) {
-		ctx.hram[addr - 0xFF80] = val;
+		ctx.mem[addr] = val;
 	} else if (addr == 0xFFFF) {
-		ctx.ie = val;
+		ctx.mem[addr] = val;
 	} else {
 		printf("ERR: bus_write not supported at address: %02X\n", addr);
 	}
