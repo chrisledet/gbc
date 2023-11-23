@@ -157,7 +157,7 @@ u8 bus_read(u16 addr) {
 		printf("ERR: bus_read not supported at address: %02X\n", addr);
 	}
 
-	return 0xCC;
+	return 0x0;
 }
 
 u16 bus_read16(u16 addr) {

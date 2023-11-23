@@ -436,7 +436,6 @@ void cpu_execute_instruction() {
 				ctx.registers.PC = ctx.fetched_data;
 			} else {
 				ctx.cycles += 1;
-				ctx.registers.PC += 2;
 			}
 		break;
 
@@ -580,6 +579,8 @@ void cpu_execute_instruction() {
 
 		case INSTRUCT_POP: {
 			cpu_write_reg16(ctx.current_instruction.r_target, ctx.fetched_data);
+			if (ctx.current_instruction.r_target == REG_AF)
+				CPU_REG_F = ctx.fetched_data & 0xF0;
 			ctx.registers.SP += 2;
 			ctx.cycles += 3;
 		}
@@ -593,20 +594,16 @@ void cpu_execute_instruction() {
 		break;
 
 		case INSTRUCT_DAA: {
-			if (CPU_FLAG_N) {
-				if (CPU_FLAG_H)
-					CPU_REG_A |= 0x06;
-				if (CPU_FLAG_C)
-					CPU_REG_A |= 0x60;
-			} else {
-				if (CPU_FLAG_H || (CPU_REG_A & 0xF) > 9)
-					CPU_REG_A |= 0x06;
-				if (CPU_FLAG_C || (CPU_REG_A > 0x99)) {
-					CPU_REG_A |= 0x60;
+			if (!CPU_FLAG_N) {
+				if (CPU_FLAG_C || CPU_REG_A > 0x99) {
+					CPU_REG_A += 0x60;
 					CPU_SET_FLAG_C(1);
 				}
+				if (CPU_FLAG_H || (CPU_REG_A & 0xF) > 9) CPU_REG_A += 0x06;
+			} else {
+				if (CPU_FLAG_H) CPU_REG_A = (CPU_REG_A - 0x06) & 0xFF;
+				if (CPU_FLAG_C) CPU_REG_A -= 0x60;
 			}
-			CPU_REG_F = 0;
 			CPU_SET_FLAG_Z(CPU_REG_A == 0);
 			CPU_SET_FLAG_H(0);
 			ctx.cycles += 1;

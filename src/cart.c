@@ -43,7 +43,7 @@ bool cart_init(const char *cart_filepath) {
 	}
 
     rewind(file);
-    const size_t fread_rc = fread(ctx.rom_data, ctx.rom_size, 1, file);
+    fread(ctx.rom_data, ctx.rom_size, 1, file);
     const u32 last_read = ftell(file);
     fclose(file);
 
@@ -68,7 +68,7 @@ bool cart_init(const char *cart_filepath) {
     for (u16 i = 0x0134; i <= 0x014C; i++)
     	checksum = checksum - (ctx.rom_data[i] - 1);
     bool r_checksum = (checksum & 0xFF);
-    printf("DEBUG: CHECKSUM: %2.2X (%s)\n", ctx.header->checksum, r_checksum ? "PASSED" : "FAILED");
+    // printf("DEBUG: CHECKSUM: %2.2X (%s)\n", ctx.header->checksum, r_checksum ? "PASSED" : "FAILED");
     return r_checksum;
 }
 

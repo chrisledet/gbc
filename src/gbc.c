@@ -37,7 +37,7 @@ int gbc_run(const char *rom_filepath) {
         return -1;
     }
 
-    cart_debug();
+    // cart_debug();
 
     cart_context *cart_ctx = get_cart_context();
     bus_init(cart_ctx);

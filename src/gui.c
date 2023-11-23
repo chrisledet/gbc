@@ -9,8 +9,8 @@ typedef struct {
 } gui_context;
 
 static gui_context ctx = {0};
-static u32 SCREEN_WIDTH = 1024;
-static u32 SCREEN_HEIGHT = 768;
+// static u32 SCREEN_WIDTH = 1024;
+// static u32 SCREEN_HEIGHT = 768;
 //static unsigned long tile_colors[4] = {0xFFFFFFFF, 0xAAAAAAFF, 0x555555FF, 0x000000FF}; // black + white
 static unsigned long tile_colors[4] = { 0xF4FFF4FF, 0xC0D0C0FF, 0x80A080FF, 0x001000FF }; // greenish
 
@@ -44,7 +44,7 @@ void gui_render_color(u8 color_id, int x, int y) {
 }
 
 void gui_tick() {
-	static int x = 0, y = 0;
+	// static int x = 0, y = 0;
 
 	//SDL_RenderPresent(ctx.renderer);
 	//SDL_RenderClear(ctx.renderer);
