@@ -1,5 +1,4 @@
 #include <timer.h>
-#include <bus.h>
 
 typedef struct {
 	u16 div;
