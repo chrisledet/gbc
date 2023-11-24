@@ -36,9 +36,9 @@ typedef struct {
 	u32 ram_bank;
 	u32 vram_bank;
 	u8 *mem;
-	u8 *rom; // banked rom
-	u8 *ram; // banked ram
-
+	u8 *rom;  // banked rom
+	u8 *ram;  // banked ram
+	u8 *vram; // banked vram
 	bool ram_enabled;
 	bool dma_transfer;
 } bus_ctx;
@@ -51,19 +51,14 @@ void bus_init(const cart_context* cart_ctx) {
 		return;
 	}
 
-	u32 rom_bank_count = 1 << (cart_ctx->header->rom_size + 1);
-	//for (u8 i = 0; i < rom_bank_count; i += 1) {
-	ctx.rom = malloc(ROM_BANK_SIZE * rom_bank_count);
-	memcpy(ctx.rom, &cart_ctx->rom_data[0], ROM_BANK_SIZE * rom_bank_count);
-	//}
-
-	//printf("sizeof(cart_ctx->rom_data) = %02X\n", sizeof(&cart_ctx->rom_data));
-	//printf("sizeof(rom) = %02X\n", sizeof(&ctx.rom));
+	int rom_bank_count = 1 << (cart_ctx->header->rom_size + 1);
+	ctx.rom = calloc(1, ROM_BANK_SIZE * rom_bank_count);
+	memcpy(ctx.rom, &cart_ctx->rom_data[0], cart_ctx->rom_size);
 
 	ctx.mem = calloc(1, MEM_SIZE);
 	memcpy(ctx.mem, &cart_ctx->rom_data[0], ROM_BANK_SIZE * 2);
 
-	u32 ram_bank_count = 0;
+	int ram_bank_count = 0;
 	switch (cart_ctx->header->ram_size) {
 		case 0x2:
 			ram_bank_count = 1;
@@ -83,10 +78,6 @@ void bus_init(const cart_context* cart_ctx) {
 	}
 	ctx.ram = calloc(1, (ram_bank_count ? RAM_BANK_SIZE * ram_bank_count : RAM_BANK_SIZE));
 
-	//ctx.vram = calloc(1, VRAM_BANK_SIZE * 2);
-	//ctx.hram = calloc(1, 0x7F);
-	//ctx.hw = calloc(1, 0xFF);
-	//ctx.oam = calloc(1, 0xA0);
 	ctx.rom_bank = 0;
 	ctx.ram_bank = 0;
 	ctx.vram_bank = 0;
@@ -95,12 +86,12 @@ void bus_init(const cart_context* cart_ctx) {
 u8 bus_read(u16 addr) {
 	if (addr < 0x4000) {
 		// ROM DATA / BANK
-		return ctx.mem[addr];
+		return ctx.rom[addr];
 	} else if (addr >= 0x4000 && addr < 0x8000) {
 		// ROM SWITCHABLE BANK
 		if (ctx.rom_bank)
 			return ctx.rom[(ctx.rom_bank+1) * ROM_BANK_SIZE + addr];
-		return ctx.mem[addr];
+		return ctx.rom[addr];
 	} else if (addr >= 0x8000 && addr < 0xA000) {
 		// LCD RAM
 		// bankable?
@@ -215,6 +206,7 @@ void bus_write(u16 addr, u8 val) {
 				ctx.mem[addr] = val & 0xFC;
 			break;
 			case ADDR_LY:
+				ctx.mem[addr] = val;
 			break;
 			case ADDR_DMA_TRANSFER:
 				ctx.dma_transfer = true;

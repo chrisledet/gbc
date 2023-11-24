@@ -15,12 +15,12 @@ static timer_context ctx = {0};
 
 
 void timer_init() {
-	// TODO set div's initial value
-	// timer_write(ADDR_DIV, 0x0);
+	// timer_write(ADDR_DIV, 0xAC);
+	ctx.div = 0xAC00;
 }
 
 u16 timer_get_tima_freq() {
-	switch (ctx.tac) {
+	switch (ctx.tac & 0x3) {
 		case 0x0: return 1024;
 		case 0x1: return 16;
 		case 0x2: return 64;
@@ -47,16 +47,16 @@ void timer_write(u16 addr, u8 val) {
 	switch (addr) {
 		case ADDR_DIV:
 			ctx.div = 0;
-			break;
+		break;
 		case ADDR_TIMA:
 			ctx.tima = val;
-			break;
+		break;
 		case ADDR_TMA:
 			ctx.tma = val;
-			break;
+		break;
 		case ADDR_TAC:
 			ctx.tac = val;
-			break;
+		break;
 	}
 }
 
@@ -67,7 +67,7 @@ bool timer_tick(u8 cycles) {
 		ctx.c_div -= 0x100;
 	}
 
-	if (ctx.tac & 0x4) { // 2nd bit for control flag
+	if (ctx.tac & 0x4) { // bit 2 for tima enable flag
 		ctx.c_tima += cycles;
 		while (ctx.c_tima >= timer_get_tima_freq()) {
 			if (ctx.tima == 0xFF) {
