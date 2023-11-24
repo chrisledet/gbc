@@ -25,22 +25,18 @@ typedef struct {
 	} registers;
 	bool halted;
 	bool stopped;
-	u8 current_opcode;
 	u32 cycles;
+	// instruction state
+	u8 current_opcode;
 	cpu_instruction current_instruction;
-
 	u16 fetched_data;
 	bool write_bus;
-	u16 write_dst; // bus address to write to
-
+	u16 write_dst;
+	// interrupts
 	bool ime;
 	bool enable_ime;
-	u8 IE; // which interrupts _can_ be called
-	u8 IF; // which interrupts _want_ to be called
 } cpu_context;
 
 void cpu_init();
 u32 cpu_step();
 void cpu_request_interrupt(u8 interrupt);
-u8 cpu_get_ie_register();
-void cpu_set_ie_register(u8 value);

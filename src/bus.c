@@ -76,7 +76,7 @@ void bus_init(const cart_context* cart_ctx) {
 			ram_bank_count = 0;
 		break;
 	}
-	ctx.ram = calloc(1, (ram_bank_count ? RAM_BANK_SIZE * ram_bank_count : RAM_BANK_SIZE));
+	ctx.ram = calloc(1, (ram_bank_count ? (RAM_BANK_SIZE * ram_bank_count) : RAM_BANK_SIZE));
 
 	ctx.rom_bank = 0;
 	ctx.ram_bank = 0;
@@ -226,7 +226,8 @@ void bus_write(u16 addr, u8 val) {
 	} else if (addr == 0xFFFF) {
 		ctx.mem[addr] = val;
 	} else {
-		printf("ERR: bus_write not supported at address: %02X\n", addr);
+		//printf("ERR: bus_write not supported at address: %02X\n", addr);
+		ctx.mem[addr] = val;
 	}
 }
 

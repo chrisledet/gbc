@@ -18,7 +18,7 @@ typedef struct {
 static gui_context ctx = {0};
 // static u32 SCREEN_WIDTH = 1024;
 // static u32 SCREEN_HEIGHT = 768;
-// static unsigned long color_palette[4] = {0xFF000000, 0xFF000000, 0xFF000000, 0xFF000000}; // black + white
+//static unsigned long color_palette[4] = {0xFF000000, 0xFF000000, 0xFF000000, 0xFF000000}; // black + white
 static unsigned long color_palette[4] = { 0xFF9BBC0F, 0xFF8BAC0F, 0xFF306230, 0xFF0F380F }; // greenish
 
 static int scale = 2;
@@ -59,7 +59,7 @@ void display_tile(u16 addr, u16 tile_idx, u16 x, u16 y) {
 			u8 color = hi | lo;
 
 			rc.x = x + (7 - bit) * scale;
-			rc.y = y + (tile_y / 2) * scale;
+			rc.y = y + (tile_y / 2 * scale);
 			rc.w = scale;
 			rc.h = scale;
 
@@ -69,16 +69,16 @@ void display_tile(u16 addr, u16 tile_idx, u16 x, u16 y) {
 }
 
 void vram_window_tick() {
-	u16 x_draw = 0;
-	u16 y_draw = 0;
-	u16 tile = 0;
-
 	SDL_Rect rc = {0};
 	rc.x = 0;
 	rc.y = 0;
 	rc.w = ctx.vramSurface->w;
 	rc.h = ctx.vramSurface->h;
 	SDL_FillRect(ctx.vramSurface, &rc, 0xFF111111);
+
+	u16 x_draw = 0;
+	u16 y_draw = 0;
+	u16 tile = 0;
 
 	// 24 * 16
 	for (int y = 0; y < 24; ++y) {

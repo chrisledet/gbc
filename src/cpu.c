@@ -804,9 +804,9 @@ void cpu_init() {
 	cpu_write_reg16(REG_HL, 0x014D);
 
 //#ifdef DEBUG
-	ctx.registers.PC = 0x100;
+	//ctx.registers.PC = 0x100;
 //#else
-	//ctx.registers.PC = 0x000;
+	ctx.registers.PC = 0x000;
 //#endif
 	ctx.registers.SP = 0xFFFE;
 }
@@ -841,8 +841,9 @@ void cpu_debug() {
 void cpu_execute_interupts() {
 	if (ctx.ime) {
 		u8 ifs = bus_read(ADDR_IF);
+		u8 ie = bus_read(ADDR_IE);
 
-		if ((ctx.IE & INTERRUPT_VBLANK) && (ifs & INTERRUPT_VBLANK)) {
+		if ((ie & INTERRUPT_VBLANK) && (ifs & INTERRUPT_VBLANK)) {
 			ctx.registers.PC -= 2;
 			ctx.registers.SP = ctx.registers.PC;
 			ctx.registers.PC = 0x40;
@@ -851,7 +852,7 @@ void cpu_execute_interupts() {
 			ctx.cycles += 20;
 			bus_write(ADDR_IF, ifs & ~INTERRUPT_VBLANK);
 		}
-		if ((ctx.IE & INTERRUPT_LCD_STAT) && (ifs & INTERRUPT_LCD_STAT)) {
+		if ((ie & INTERRUPT_LCD_STAT) && (ifs & INTERRUPT_LCD_STAT)) {
 			ctx.registers.PC -= 2;
 			ctx.registers.SP = ctx.registers.PC;
 			ctx.registers.PC = 0x48;
@@ -860,7 +861,7 @@ void cpu_execute_interupts() {
 			ctx.cycles += 20;
 			bus_write(ADDR_IF, ifs & ~INTERRUPT_LCD_STAT);
 		}
-		if ((ctx.IE & INTERRUPT_TIMER) && (ifs & INTERRUPT_TIMER)) {
+		if ((ie & INTERRUPT_TIMER) && (ifs & INTERRUPT_TIMER)) {
 			ctx.registers.PC -= 2;
 			ctx.registers.SP = ctx.registers.PC;
 			ctx.registers.PC = 0x50;
@@ -869,7 +870,7 @@ void cpu_execute_interupts() {
 			ctx.cycles += 20;
 			bus_write(ADDR_IF, ifs & ~INTERRUPT_TIMER);
 		}
-		if ((ctx.IE & INTERRUPT_SERIAL) && (ifs & INTERRUPT_SERIAL)) {
+		if ((ie & INTERRUPT_SERIAL) && (ifs & INTERRUPT_SERIAL)) {
 			ctx.registers.PC -= 2;
 			ctx.registers.SP = ctx.registers.PC;
 			ctx.registers.PC = 0x58;
@@ -878,14 +879,14 @@ void cpu_execute_interupts() {
 			ctx.cycles += 20;
 			bus_write(ADDR_IF, ifs & ~INTERRUPT_SERIAL);
 		}
-		if ((ctx.IE & INTERRUPT_JOYPAD) && (ifs & INTERRUPT_JOYPAD)) {
+		if ((ie & INTERRUPT_JOYPAD) && (ifs & INTERRUPT_JOYPAD)) {
 			ctx.registers.PC -= 2;
 			ctx.registers.SP = ctx.registers.PC;
 			ctx.registers.PC = 0x60;
 
 			ctx.ime = false;
 			ctx.cycles += 20;
-			bus_write(ADDR_IF, ifs & ~INTERRUPT_SERIAL);
+			bus_write(ADDR_IF, ifs & ~INTERRUPT_JOYPAD);
 		}
 	}
 }
@@ -896,9 +897,9 @@ u32 cpu_step() {
 
 	if (ctx.halted) {
 		ctx.cycles += 1;
-		if (ctx.IF) {
+		u8 ifs = bus_read(ADDR_IF);
+		if (ifs)
 			ctx.halted = false;
-		}
 		return ctx.cycles;
 	}
 
@@ -929,12 +930,4 @@ u32 cpu_step() {
 void cpu_request_interrupt(u8 i) {
 	u8 r = bus_read(ADDR_IF) | i;
 	bus_write(ADDR_IF, r);
-}
-
-u8 cpu_get_ie_register() {
-	return bus_read(ADDR_IE);
-}
-
-void cpu_set_ie_register(u8 value) {
-	bus_write(ADDR_IE, value);
 }
