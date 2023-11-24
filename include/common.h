@@ -26,6 +26,7 @@ typedef uint64_t u64;
 #define ADDR_TAC 0xFF07
 #define ADDR_IF 0xFF0F
 
+
 #define ADDR_LCDC 0xFF40
 #define ADDR_STAT 0xFF41
 #define ADDR_SCY 0xFF42
@@ -36,3 +37,5 @@ typedef uint64_t u64;
 #define ADDR_WY 0xFF4A
 #define ADDR_WX 0xFF48
 #define ADDR_KEY1 0xFF4D
+
+#define ADDR_IE 0xFFFF

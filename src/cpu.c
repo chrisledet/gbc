@@ -162,10 +162,9 @@ i8 cpu_read_signed_n() {
 }
 
 u16 cpu_read_nn() {
-	ctx.cycles += 2;
-	u16 nn = bus_read(ctx.registers.PC) | (bus_read(ctx.registers.PC+1) << 8);
-	ctx.registers.PC += 2;
-	return nn;
+	u16 lo = cpu_read_n();
+	u16 hi = cpu_read_n() << 8;
+	return lo | hi;
 }
 
 void cpu_fetch_instruction() {
@@ -201,6 +200,11 @@ void cpu_fetch_data() {
 			ctx.fetched_data = cpu_read_n();
 			if (ctx.current_instruction.r_source)
 				ctx.fetched_data += cpu_read_reg16(ctx.current_instruction.r_source);
+		break;
+		case MODE_D8_TO_ADDR:
+			ctx.fetched_data = cpu_read_n();
+			if (ctx.current_instruction.r_target)
+				ctx.write_dst = cpu_read_reg16(ctx.current_instruction.r_target);
 		break;
 		case MODE_D8:
 			ctx.fetched_data =  cpu_read_signed_n();
@@ -340,19 +344,23 @@ void cpu_execute_instruction() {
 
 		case INSTRUCT_SBC: {
 			u16 n = cpu_read_reg16(ctx.current_instruction.r_target);
-			u16 r = n - ctx.fetched_data - CPU_FLAG_Z;
+			bool c = CPU_FLAG_C;
+
 			if (ctx.current_instruction.r_target < REG_AF) {
-				cpu_write_reg(ctx.current_instruction.r_target, r & 0xFF);
+				u8 r = n - ctx.fetched_data - c;
+				cpu_write_reg(ctx.current_instruction.r_target, r);
+				CPU_SET_FLAG_Z(r == 0);
 				ctx.cycles += 1;
 			} else {
+				u16 r = n - ctx.fetched_data - c;
 				cpu_write_reg16(ctx.current_instruction.r_target, r);
+				CPU_SET_FLAG_Z(r == 0);
 				ctx.cycles += 2;
 			}
 
-			CPU_SET_FLAG_Z(r == 0);
+			CPU_SET_FLAG_H(((n & 0xF) - (ctx.fetched_data & 0xF) - c) < 0);
+			CPU_SET_FLAG_C((n - ctx.fetched_data - c) < 0);
 			CPU_SET_FLAG_N(1);
-			CPU_SET_FLAG_H((n & 0xF) < ((ctx.fetched_data & 0xF) + CPU_FLAG_Z));
-			CPU_SET_FLAG_C(r < ctx.fetched_data);
 		}
 		break;
 
@@ -536,31 +544,29 @@ void cpu_execute_instruction() {
 		break;
 
 		case INSTRUCT_RLCA: {
-			u8 c = (CPU_REG_A & 0x80) >> 7;
-			CPU_REG_A = (CPU_REG_A << 1) + CPU_FLAG_C;
-			// WARN: gb manual says to reset Z but other online sources based it off if reset is zero
-			CPU_REG_F = 0;
-			CPU_SET_FLAG_C(c);
-		}
-		break;
-
-		case INSTRUCT_RLA: {
-			u8 c = (CPU_REG_A & 0x80) >> 7;
-			CPU_REG_A = (CPU_REG_A << 1) + c;
-			// WARN: gb manual says to reset Z but other online sources based it off if reset is zero
+			u8 c = (ctx.fetched_data & 0x80) >> 7;
+			u8 v = (ctx.fetched_data << 1) + c;
+			cpu_write_reg(ctx.current_instruction.r_target, v);
 			CPU_REG_F = 0;
 			CPU_SET_FLAG_C(c);
 			ctx.cycles += 2;
 		}
 		break;
 
-		case INSTRUCT_RRC: {
-			u8 c = (ctx.fetched_data & 0x1);
-			u8 v = ((c << 7) | (ctx.fetched_data >> 1)) & 0xFF;
-			cpu_write_reg(ctx.current_instruction.r_target, v);
-			// WARN: gb manual says to reset Z but other online sources based it off if reset is zero
+		case INSTRUCT_RLA: {
+			u8 c = (ctx.fetched_data & 0x80) >> 7;
+			cpu_write_reg(ctx.current_instruction.r_target, (ctx.fetched_data << 1) + CPU_FLAG_C);
 			CPU_REG_F = 0;
-			CPU_SET_FLAG_Z(v == 0);
+			CPU_SET_FLAG_C(c);
+			ctx.cycles += 2;
+		}
+		break;
+
+		case INSTRUCT_RRCA: {
+			u8 c = ctx.fetched_data & 0x1;
+			u8 v = (c << 7) | (ctx.fetched_data >> 1);
+			cpu_write_reg(ctx.current_instruction.r_target, v);
+			CPU_REG_F = 0;
 			CPU_SET_FLAG_C(c);
 			ctx.cycles += 2;
 		}
@@ -570,7 +576,6 @@ void cpu_execute_instruction() {
 			u8 c = (ctx.fetched_data & 0x1);
 			u8 v = ((CPU_FLAG_C << 7) | (ctx.fetched_data >> 1)) & 0xFF;
 			cpu_write_reg(ctx.current_instruction.r_target, v);
-			// WARN: gb manual says to reset Z but other online sources based it off if reset is zero
 			CPU_REG_F = 0;
 			CPU_SET_FLAG_C(c);
 			ctx.cycles += 2;
@@ -619,15 +624,17 @@ void cpu_execute_instruction() {
 		break;
 
 		case INSTRUCT_SCF: {
-			CPU_REG_F = 0;
+			CPU_SET_FLAG_N(0);
+			CPU_SET_FLAG_H(0);
 			CPU_SET_FLAG_C(1);
 			ctx.cycles += 1;
 		}
 		break;
 
 		case INSTRUCT_CCF: {
-			CPU_SET_FLAG_C(~CPU_FLAG_C);
 			CPU_SET_FLAG_N(0);
+			CPU_SET_FLAG_H(0);
+			CPU_SET_FLAG_C(!CPU_FLAG_C);
 			ctx.cycles += 1;
 		}
 		break;
@@ -655,10 +662,10 @@ void cpu_execute_instruction() {
 		break;
 
 		case INSTRUCT_CB_BIT: {
-			u8 r = (ctx.fetched_data >> ctx.current_instruction.parameter) & (1 << ctx.current_instruction.parameter);
+			u8 r = (ctx.fetched_data & (1 << ctx.current_instruction.parameter)) & 0xFF;
 			CPU_SET_FLAG_Z(r == 0);
 			CPU_SET_FLAG_N(0);
-			CPU_SET_FLAG_H(0);
+			CPU_SET_FLAG_H(1);
 			ctx.cycles += 2;
 		}
 		break;
@@ -711,6 +718,7 @@ void cpu_execute_instruction() {
 		case INSTRUCT_CB_RRC: {
 			u8 c = (ctx.fetched_data & 0x1);
 			u8 r = ((c << 7) | (ctx.fetched_data >> 1)) & 0xFF;
+
 			if (ctx.write_dst)
 				bus_write16(ctx.write_dst, r);
 			else
@@ -919,13 +927,14 @@ u32 cpu_step() {
 }
 
 void cpu_request_interrupt(u8 i) {
-	ctx.IF |= i;
+	u8 r = bus_read(ADDR_IF) | i;
+	bus_write(ADDR_IF, r);
 }
 
 u8 cpu_get_ie_register() {
-	return ctx.IE;
+	return bus_read(ADDR_IE);
 }
 
 void cpu_set_ie_register(u8 value) {
-	ctx.IE = value;
+	bus_write(ADDR_IE, value);
 }

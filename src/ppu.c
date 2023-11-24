@@ -17,7 +17,7 @@ typedef struct {
     u32 cycles;
 } ppu_context;
 
-static u32 color_palette[4] = { 0xF4FFF4, 0xC0D0C0, 0x80A080, 0x001000 };
+// static u32 color_palette[4] = { 0xF4FFF4, 0xC0D0C0, 0x80A080, 0x001000 };
 
 static ppu_context ctx = {0};
 

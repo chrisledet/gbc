@@ -84,37 +84,41 @@ void bus_init(const cart_context* cart_ctx) {
 }
 
 u8 bus_read(u16 addr) {
-	if (addr < 0x4000) {
-		// ROM DATA / BANK
+	if (addr < 0x8000) {
+		// 0x0000 - 0x7FFF
+		// ROM SWITCHABLE BANK 0x4000
 		return ctx.rom[addr];
-	} else if (addr >= 0x4000 && addr < 0x8000) {
-		// ROM SWITCHABLE BANK
-		if (ctx.rom_bank)
-			return ctx.rom[(ctx.rom_bank+1) * ROM_BANK_SIZE + addr];
-		return ctx.rom[addr];
-	} else if (addr >= 0x8000 && addr < 0xA000) {
+	} else if (addr < 0xA000) {
+		// 0x8000 - 0x9FFF
 		// LCD RAM
 		// bankable?
 		//return ctx.mem[ctx.vram_bank * VRAM_BANK_SIZE + addr];
 		return ctx.mem[addr];
-	} else if (addr >= 0xA000 && addr < 0xC000) {
+	} else if (addr < 0xC000) {
+		// 0xA000 - 0xBFFF
 		// CART RAM
-		if (!ctx.ram_enabled)
-			return 0xFF;
+		// if (!ctx.ram_enabled)
+		// 	return 0xFF;
 		return ctx.mem[addr];
-	} else if (addr >= 0xC000 && addr < 0xE000) {
+	} else if (addr < 0xE000) {
+		// 0xC000 - 0xDFFF
 		// bankable ram
 		return ctx.mem[addr];
-	} else if (addr >= 0xE000 && addr < 0xFDFF) {
+	} else if (addr < 0xFE00) {
+		// 0xE000 - 0xFDFF
 		// check echo ram access
 		return ctx.mem[addr-0x2000];
-	} else if (addr >= 0xFE00 && addr < 0xFEFF) {
-		// oam
+	} else if (addr < 0xFE9F) {
+		// 0xFE00 - 0xFE9F
 		// when OAM blocked return 0xFF;
-		if (ctx.dma_transfer)
-			return 0xFF;
+		// if (ctx.dma_transfer)
+			// return 0xFF;
 		return ctx.mem[addr];
-	} else if (addr >= 0xFF00 && addr < 0xFF80) {
+	} else if (addr < 0xFEFF) {
+		// 0xFEA0 - 0xFE9F
+		// RESERVED / UNUSABLE
+		return 0x0;
+	} else if (addr < 0xFF80) {
 		switch (addr) {
 			case ADDR_DIV:
 				return timer_read(ADDR_DIV);
@@ -139,7 +143,7 @@ u8 bus_read(u16 addr) {
 			default:
 				return ctx.mem[addr];
 		}
-	} else if (addr >= 0xFF80 && addr < 0xFFFF) {
+	} else if (addr < 0xFFFF) {
 		// high ram
 		return ctx.mem[addr];
 	} else if (addr == 0xFFFF) {
@@ -159,10 +163,7 @@ void bus_write(u16 addr, u8 val) {
 	if (addr <= 0x1FFF) {
 		// ROM SPACE
 		// mbc1 logic
-		if (val == 0xA)
-			ctx.ram_enabled = true;
-		else if (!val)
-			ctx.ram_enabled = false;
+		// ctx.ram_enabled = (val == 0xA);
 	} else if (0x2000 <= addr && addr < 0x8000) {
 		// TODO: ROM / RAM switch
 	} else if (0x8000 <= addr && addr < 0xA000) {
@@ -174,15 +175,19 @@ void bus_write(u16 addr, u8 val) {
 		//ctx.ram[(ctx.ram_bank * RAM_BANK_SIZE) + (addr - 0xA000)] = val;
 		ctx.mem[addr] = val;
 	} else if (0xC000 <= addr && addr < 0xE000) {
+		// bankable ram
+		// if (ctx.ram_enabled)
 		ctx.mem[addr] = val;
 	} else if (addr >= 0xFE00 && addr < 0xFE9F) {
-		ctx.mem[addr] = val;
+		// OAM
+		// ctx.mem[addr] = val;
 	} else if (addr >= 0xFEA0 && addr < 0xFEFF) {
 		// NOT USABLE
 	} else if (addr >= 0xFF00 && addr < 0xFF80) {
 		switch (addr) {
 			case ADDR_JOYPAD:
 				// TODO
+				ctx.mem[ADDR_JOYPAD] = val;
 			break;
 			case ADDR_DIV:
 				timer_write(ADDR_DIV, val);
@@ -226,6 +231,6 @@ void bus_write(u16 addr, u8 val) {
 }
 
 void bus_write16(u16 addr, u16 val) {
-	bus_write(addr, val & 0xff);
+	bus_write(addr, val & 0xFF);
 	bus_write(addr+1, (val >> 8) & 0xFF);
 }

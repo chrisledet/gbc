@@ -35,6 +35,7 @@ int gbc_cpu_run(void* data) {
     while (ctx.running) {
         cpu_step();
     }
+    return 0;
 }
 
 int gbc_run(const char *rom_filepath) {
@@ -53,8 +54,7 @@ int gbc_run(const char *rom_filepath) {
     gui_init();
 
     // System
-    SDL_Thread *cpu_thread;
-    SDL_CreateThread(gbc_cpu_run, "gbc cpu", NULL);
+    SDL_Thread *cpu_thread = SDL_CreateThread(gbc_cpu_run, "gbc cpu", NULL);
 
     // UI
     while (ctx.running) {

@@ -18,8 +18,8 @@ typedef struct {
 static gui_context ctx = {0};
 // static u32 SCREEN_WIDTH = 1024;
 // static u32 SCREEN_HEIGHT = 768;
-//static unsigned long color_palette[4] = {0xFFFFFFFF, 0xAAAAAAFF, 0x555555FF, 0x000000FF}; // black + white
-static unsigned long color_palette[4] = { 0xF4FFF4FF, 0xC0D0C0FF, 0x80A080FF, 0x001000FF }; // greenish
+// static unsigned long color_palette[4] = {0xFF000000, 0xFF000000, 0xFF000000, 0xFF000000}; // black + white
+static unsigned long color_palette[4] = { 0xFF9BBC0F, 0xFF8BAC0F, 0xFF306230, 0xFF0F380F }; // greenish
 
 static int scale = 2;
 
@@ -44,8 +44,6 @@ void gui_init() {
 		(32 * 8 * scale) + (64 * scale));
 	SDL_SetWindowTitle(ctx.vramWindow, "gbc - vram");
 	// SDL_SetRenderDrawColor(ctx.renderer, 0xFF, 0xAA, 0xAA, 0xFF);
-
-
 }
 
 void display_tile(u16 addr, u16 tile_idx, u16 x, u16 y) {
