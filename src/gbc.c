@@ -49,8 +49,8 @@ int gbc_run(const char *rom_filepath) {
     while (ctx.running) {
         cpu_step();
 
-        ppu_tick();
-        gui_tick();
+        // ppu_tick();
+        // gui_tick();
         ctx.ticks++;
         ctx.running = !(gui_handle_input() & GUI_QUIT);
     }
