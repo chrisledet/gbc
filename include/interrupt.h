@@ -1,5 +1,3 @@
-#include <stdlib.h>
-
 typedef enum {
 	INTERRUPT_NONE = 0x0,
 	INTERRUPT_VBLANK = 0x1,

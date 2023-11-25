@@ -1,39 +1,56 @@
-#include <gbc.h>
+#include "gbc.h"
+
+#include "common.h"
+#include "cart.h"
+#include "cpu.h"
+#include "bus.h"
+#include "gui.h"
+#include "ppu.h"
+#include "timer.h"
+#include "interrupt.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-
-#include <common.h>
-#include <cart.h>
-#include <cpu.h>
-#include <bus.h>
-#include <gui.h>
-#include <ppu.h>
 
 #include <SDL.h>
 #include <SDL_thread.h>
 
 /*
     gbc:
-        - gui
-        - cart
-        - cpu
         - bus
+        - cart
+        - gui
+        - cpu
         - ppu
         - timer
 */
 
-static gbc_context ctx;
+static gbc_context ctx = {0};
 
 gbc_context* gbc_get_context() {
     return &ctx;
 }
 
-int gbc_cpu_run(void* data) {
+int gbc_sys_run(void* data) {
+    ctx.debug_mode = true;
+    ctx.ticks = 0;
+    ctx.running = true;
+
     cpu_init();
+    timer_init();
+    ppu_init();    
+
     while (ctx.running) {
-        cpu_step();
+        int cycles = 0;
+
+        if (ctx.debug_mode)
+            cpu_debug();
+        
+        ppu_tick();
+        cycles += cpu_step();
+        if (timer_tick())
+            cpu_request_interrupt(INTERRUPT_TIMER);
     }
     return 0;
 }
@@ -48,18 +65,13 @@ int gbc_run(const char *rom_filepath) {
     cart_context *cart_ctx = get_cart_context();
     bus_init(cart_ctx);
 
-    // set up app state
-    ctx.ticks = 0;
-    ctx.running = true;
-    gui_init();
-
     // System
-    SDL_Thread *cpu_thread = SDL_CreateThread(gbc_cpu_run, "gbc cpu", NULL);
+    SDL_CreateThread(gbc_sys_run, "gbc cpu", NULL);
 
     // UI
+    gui_init();
     while (ctx.running) {
         SDL_Delay(1);
-        ppu_tick();
         gui_tick();
         ctx.running = !(gui_handle_input() & GUI_QUIT);
     }

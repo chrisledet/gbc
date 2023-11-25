@@ -38,5 +38,6 @@ typedef struct {
 } cpu_context;
 
 void cpu_init();
+void cpu_debug();
 u32 cpu_step();
 void cpu_request_interrupt(u8 interrupt);

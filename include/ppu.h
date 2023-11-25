@@ -9,4 +9,5 @@ typedef struct {
 
 void ppu_init();
 void ppu_tick();
-void ppu_dma_oam_transfer(u8 addr);
+void ppu_dma_start(u8 addr);
+bool ppu_dma_is_transferring();

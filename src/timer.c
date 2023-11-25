@@ -1,38 +1,19 @@
-#include <timer.h>
+#include "timer.h"
+#include <stdio.h>
 
 typedef struct {
-	u16 div;
+	u32 div;
 	u8 tima;
 	u8 tma;
 	u8 tac;
-	u16 c_div;
-	u8 c_tima;
-	u32 tima_frequency;
 } timer_context;
 
-
 static timer_context ctx = {0};
-
-
-void timer_init() {
-	// timer_write(ADDR_DIV, 0xAC);
-	ctx.div = 0xAC00;
-}
-
-u16 timer_get_tima_freq() {
-	switch (ctx.tac & 0x3) {
-		case 0x0: return 1024;
-		case 0x1: return 16;
-		case 0x2: return 64;
-		case 0x3: return 256;
-		default: return 1024;
-	}
-}
 
 u8 timer_read(u16 addr) {
 	switch (addr) {
 		case ADDR_DIV:
-			return ctx.div >> 8;
+			return (ctx.div & 0xFF) >> 8;
 		case ADDR_TIMA:
 			return ctx.tima;
 		case ADDR_TMA:
@@ -60,25 +41,36 @@ void timer_write(u16 addr, u8 val) {
 	}
 }
 
-bool timer_tick(u8 cycles) {
-	ctx.c_div += cycles;
-	if (ctx.c_div >= 0x100) {
-		ctx.div++;
-		ctx.c_div -= 0x100;
+bool timer_tick() {
+	u32 p_div = ctx.div++;
+	bool timer_update = false;
+	switch (ctx.tac & 0x3) {
+		case 0x0:
+			timer_update = (p_div & (1 << 9)) && !(ctx.div & (1 << 9));
+		break;
+		case 0x1:
+			timer_update = (p_div & (1 << 3)) && !(ctx.div & (1 << 3));
+		break;
+		case 0x2:
+			timer_update = (p_div & (1 << 5)) && !(ctx.div & (1 << 5));
+		break;
+		case 0x3:
+			timer_update = (p_div & (1 << 7)) && !(ctx.div & (1 << 7));
+		break;
 	}
 
-	if (ctx.tac & 0x4) { // bit 2 for tima enable flag
-		ctx.c_tima += cycles;
-		while (ctx.c_tima >= timer_get_tima_freq()) {
-			if (ctx.tima == 0xFF) {
-				ctx.tima = ctx.tma;
-				return true;
-			} else {
-				ctx.tima++;
-			}
-			ctx.c_tima -= timer_get_tima_freq();
+	 // bit 2 for tima enable flag
+	if ((ctx.tac & 0x4) && timer_update) {
+		ctx.tima++;
+		if (ctx.tima == 0xFF) {
+			ctx.tima = ctx.tma;
+			return true;
 		}
 	}
 
 	return false;
+}
+
+void timer_init() {
+	ctx.div = 0xAC00;
 }

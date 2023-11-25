@@ -1,5 +1,4 @@
 #include "gui.h"
-#include "common.h"
 #include "bus.h"
 
 #include <stdio.h>
@@ -18,8 +17,9 @@ typedef struct {
 static const u32 SCREEN_WIDTH = 160;
 static const u32 SCREEN_HEIGHT = 144;
 static const u16 TILE_SIZE = 16;
-static gui_context ctx = {0};
 static int scale = 4;
+
+static gui_context ctx = {0};
 
 //static unsigned long color_palette[4] = {0xFF000000, 0xFF000000, 0xFF000000, 0xFF000000}; // black + white
 static unsigned long color_palette[4] = { 0xFF9BBC0F, 0xFF8BAC0F, 0xFF306230, 0xFF0F380F }; // greenish
@@ -31,7 +31,11 @@ SDL_Surface* gui_get_surface() {
 void gui_init() {
 	SDL_Init(SDL_INIT_EVERYTHING);
 
-	ctx.window = SDL_CreateWindow("gbc", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, SCREEN_WIDTH * scale, SCREEN_HEIGHT * scale, SDL_WINDOW_SHOWN);
+	ctx.window = SDL_CreateWindow(
+		"gbc",
+		SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+		SCREEN_WIDTH * scale, SCREEN_HEIGHT * scale,
+		SDL_WINDOW_SHOWN);
 	ctx.renderer = SDL_CreateRenderer(ctx.window, 0, SDL_RENDERER_ACCELERATED);
 
 	SDL_CreateWindowAndRenderer(16 * 8 * scale, 32 * 8 * scale, 0, &ctx.dbgWindow, &ctx.dbgRenderer);
@@ -98,13 +102,13 @@ void gui_gbc_window_tick() {
 	// TODO
 }
 
-u64 gui_get_ticks() {
-	return SDL_GetTicks();
-}
-
 void gui_tick() {
 	gui_dbg_window_tick();
 	gui_gbc_window_tick();
+}
+
+u64 gui_get_ticks() {
+	return SDL_GetTicks();
 }
 
 gui_event gui_handle_input() {

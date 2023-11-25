@@ -51,8 +51,7 @@ void bus_init(const cart_context* cart_ctx) {
 		return;
 	}
 
-	int rom_bank_count = 1 << (cart_ctx->header->rom_size + 1);
-	ctx.rom = calloc(1, ROM_BANK_SIZE * rom_bank_count);
+	ctx.rom = calloc(1, cart_ctx->rom_size);
 	memcpy(ctx.rom, &cart_ctx->rom_data[0], cart_ctx->rom_size);
 
 	ctx.mem = calloc(1, MEM_SIZE);
@@ -81,6 +80,39 @@ void bus_init(const cart_context* cart_ctx) {
 	ctx.rom_bank = 0;
 	ctx.ram_bank = 0;
 	ctx.vram_bank = 0;
+
+	ctx.mem[ADDR_JOYPAD] = 0xCF;
+	ctx.mem[ADDR_SC] = 0x7E;
+	ctx.mem[ADDR_IF] = 0x01;
+	// ctx.mem[ADDR_NR10] = 0x80;
+	// ctx.mem[ADDR_NR11] = 0xBF;
+	// ctx.mem[ADDR_NR12] = 0xF3;
+	// ctx.mem[ADDR_NR14] = 0xBF;
+	// ctx.mem[ADDR_NR21] = 0x3F;
+	// ctx.mem[ADDR_NR22] = 0x00;
+	// ctx.mem[ADDR_NR24] = 0xBF;
+	// ctx.mem[ADDR_NR30] = 0x7F;
+	// ctx.mem[ADDR_NR31] = 0xFF;
+	// ctx.mem[ADDR_NR32] = 0x9F;
+	// ctx.mem[ADDR_NR33] = 0xBF;
+	// ctx.mem[ADDR_NR41] = 0xFF;
+	// ctx.mem[ADDR_NR42] = 0x00;
+	// ctx.mem[ADDR_NR43] = 0x00;
+	// ctx.mem[ADDR_NR50] = 0x77;
+	// ctx.mem[ADDR_NR51] = 0xF3;
+	// ctx.mem[ADDR_NR52] = 0xF1;
+	ctx.mem[ADDR_LCDC] = 0x91;
+	ctx.mem[ADDR_SCY] = 0x00;
+	ctx.mem[ADDR_SCX] = 0x00;
+	ctx.mem[ADDR_LY] = 0x00;
+	ctx.mem[ADDR_LYC] = 0x00;
+	// ctx.mem[ADDR_BGP] = 0xFC;
+	// ctx.mem[ADDR_OBP0] = 0xFF;
+	// ctx.mem[ADDR_OBP1] = 0xFF;
+	// ctx.mem[ADDR_WY] = 0x00;
+	// ctx.mem[ADDR_WX] = 0x00;
+	// ctx.mem[ADDR_HDMA5] = 0xFF;
+	// ctx.mem[ADDR_SVBK] = 0x01;
 }
 
 u8 bus_read(u16 addr) {
@@ -180,7 +212,7 @@ void bus_write(u16 addr, u8 val) {
 		ctx.mem[addr] = val;
 	} else if (addr >= 0xFE00 && addr < 0xFE9F) {
 		// OAM
-		// ctx.mem[addr] = val;
+		ctx.mem[addr] = val;
 	} else if (addr >= 0xFEA0 && addr < 0xFEFF) {
 		// NOT USABLE
 	} else if (addr >= 0xFF00 && addr < 0xFF80) {
@@ -215,7 +247,7 @@ void bus_write(u16 addr, u8 val) {
 			break;
 			case ADDR_DMA_TRANSFER:
 				ctx.dma_transfer = true;
-				ppu_dma_oam_transfer(val);
+				ppu_dma_start(val);
 			break;
 			default:
 				ctx.mem[addr] = val;
