@@ -1,5 +1,6 @@
 #include "gui.h"
 #include "bus.h"
+#include "ppu.h"
 
 #include <stdio.h>
 #include <SDL.h>
@@ -7,11 +8,13 @@
 typedef struct {
 	SDL_Window *window;
 	SDL_Renderer *renderer;
+	SDL_Surface *surface;
+	SDL_Texture *texture;
 
 	SDL_Window *dbgWindow;
 	SDL_Renderer *dbgRenderer;
-	SDL_Texture *dbgTexture;
 	SDL_Surface *dbgSurface;
+	SDL_Texture *dbgTexture;
 } gui_context;
 
 static int scale = 2;
@@ -28,12 +31,16 @@ SDL_Surface* gui_get_surface() {
 void gui_init() {
 	SDL_Init(SDL_INIT_EVERYTHING);
 
-	ctx.window = SDL_CreateWindow(
-		"gbc",
-		SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-		SCREEN_WIDTH * scale, SCREEN_HEIGHT * scale,
-		SDL_WINDOW_SHOWN);
-	ctx.renderer = SDL_CreateRenderer(ctx.window, 0, SDL_RENDERER_ACCELERATED);
+	// ctx.window = SDL_CreateWindow(
+	// 	"gbc",
+	// 	SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+	// 	SCREEN_WIDTH * scale, SCREEN_HEIGHT * scale,
+	// 	SDL_WINDOW_SHOWN);
+	SDL_CreateWindowAndRenderer(SCREEN_WIDTH, SCREEN_HEIGHT, 0, &ctx.window, &ctx.renderer);
+	ctx.surface = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT,
+		32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+	ctx.texture = SDL_CreateTexture(ctx.renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
+		SCREEN_WIDTH, SCREEN_HEIGHT);
 
 	SDL_CreateWindowAndRenderer(16 * 8 * scale, 32 * 8 * scale, 0, &ctx.dbgWindow, &ctx.dbgRenderer);
 	ctx.dbgSurface = SDL_CreateRGBSurface(0,
@@ -96,7 +103,32 @@ void gui_dbg_window_tick() {
 }
 
 void gui_gbc_window_tick() {
-	// TODO
+	SDL_Rect rc = {0};
+	rc.x = 0;
+	rc.y = 0;
+	rc.w = 2048;
+	rc.h = 2048;
+
+	u32 *vbuffer = ppu_get_context()->vbuffer;
+
+	// if (vbuffer == NULL)
+	// 	return;
+
+	for (int line_num = 0; line_num < SCREEN_HEIGHT; ++line_num) {
+		for (int x = 0; x < SCREEN_WIDTH; ++x) {
+			rc.x = x * scale;
+			rc.y = line_num * scale;
+			rc.w = scale;
+			rc.h = scale;
+
+			SDL_FillRect(ctx.surface, &rc, vbuffer[x + (line_num*SCREEN_WIDTH)]);
+		}
+	}
+
+	SDL_UpdateTexture(ctx.texture, NULL, ctx.surface->pixels, ctx.surface->pitch);
+	SDL_RenderClear(ctx.renderer);
+	SDL_RenderCopy(ctx.renderer, ctx.texture, NULL, NULL);
+	SDL_RenderPresent(ctx.renderer);
 }
 
 void gui_tick() {

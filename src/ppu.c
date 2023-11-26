@@ -15,17 +15,7 @@
 #define TICKS_PER_LINE 456
 #define LINES_PER_FRAME 154
 
-typedef struct {
-	u8 dma_delay;
-	u16 oam_src;
-	u8 oam_pos;
-
-	u32 current_frame;
-	u32 ticks;
-	u32 *vbuffer;
-
-} ppu_context;
-
+static pixel_fifo_context fifo_ctx;
 static ppu_context ctx;
 
 // frame state
@@ -70,6 +60,132 @@ u8 ppu_inc_ly() {
 	return ly;
 }
 
+void ppu_fifo_pixel_push(u32 color) {
+	fifo_entry *e = calloc(1, sizeof(fifo_entry));
+	e->next = NULL;
+	e->color = color;
+
+	if (!fifo_ctx.pixel_fifo.head) {
+		fifo_ctx.pixel_fifo.head = e;
+		fifo_ctx.pixel_fifo.tail = e;
+	} else {
+		fifo_ctx.pixel_fifo.tail->next = e;
+		fifo_ctx.pixel_fifo.tail = e;
+	}
+
+	fifo_ctx.pixel_fifo.size++;
+}
+
+u32 ppu_fifo_pixel_pop() {
+	if (fifo_ctx.pixel_fifo.size <= 0) {
+		fprintf(stderr, "FIFO size is empty!!\n");
+		return 0;
+	}
+
+	fifo_entry *e = fifo_ctx.pixel_fifo.head;
+	fifo_ctx.pixel_fifo.head = e->next;
+	fifo_ctx.pixel_fifo.size--;
+	u32 c = e->color;
+	free(e);
+	return c;
+}
+
+bool ppu_fifo_add() {
+	if (fifo_ctx.pixel_fifo.size > 8)
+		return false;
+
+	u8 sx = bus_read(ADDR_SCX);
+	int x = fifo_ctx.fetch_x - (8 - (sx % 8));
+
+	for (int i = 0; i < 8; ++i) {
+		int b = 7 - i;
+		u8 hi = !!(fifo_ctx.bgw_fetch[1] & (1 << b));
+		u8 lo = !!(fifo_ctx.bgw_fetch[2] & (1 << b)) << 1;
+		u32 c = lcd_get_context()->bg_colors[hi | lo];
+
+		if (x >= 0) {
+			ppu_fifo_pixel_push(c);
+			fifo_ctx.fifo_x++;
+		}
+	}
+	return true;
+}
+
+void ppu_fifo_fetch() {
+	switch (fifo_ctx.mode) {
+		case FIFO_MODE_TILE: {
+			if (lcd_is_bgw_enabled()) {
+				u16 idx = ((fifo_ctx.map_x / 8) + (fifo_ctx.map_y / 8)) * 32;
+				fifo_ctx.bgw_fetch[0] = bus_read(lcd_bg_map_addr() + idx);
+
+				if (lcd_bgw_data_addr() == 0x8800) {
+					fifo_ctx.bgw_fetch[0] += 128;
+				}
+			}
+
+			fifo_ctx.mode = FIFO_MODE_DATA0;
+			fifo_ctx.fetch_x += 8;
+		}
+		break;
+		case FIFO_MODE_DATA0: {
+			u16 idx = fifo_ctx.bgw_fetch[0] * 16 + fifo_ctx.tile_y;
+			fifo_ctx.bgw_fetch[1] = bus_read(lcd_bgw_data_addr() + idx);
+			fifo_ctx.mode = FIFO_MODE_DATA1;
+		}
+		break;
+		case FIFO_MODE_DATA1: {
+			u16 idx = fifo_ctx.bgw_fetch[0] * 16 + (fifo_ctx.tile_y + 1);
+			fifo_ctx.bgw_fetch[2] = bus_read(lcd_bgw_data_addr() + idx);
+			fifo_ctx.mode = FIFO_MODE_IDLE;
+		}
+		break;
+		case FIFO_MODE_IDLE: {
+			fifo_ctx.mode = FIFO_MODE_PUSH;
+		}
+		break;
+		case FIFO_MODE_PUSH: {
+			if (ppu_fifo_add())
+				fifo_ctx.mode = FIFO_MODE_TILE;
+		}
+		break;
+	}
+}
+
+void ppu_fifo_push() {
+	// fprintf(stderr, "fifo_ctx.pixel_fifo.size: %u\n", fifo_ctx.pixel_fifo.size);
+	if (fifo_ctx.pixel_fifo.size > 8) {
+		u32 pd = ppu_fifo_pixel_pop();
+		u8 ly = bus_read(ADDR_LY);
+		u8 sx = bus_read(ADDR_SCX);
+
+		if (fifo_ctx.line_x >= (sx & 8)) {
+			int idx = fifo_ctx.pushed_x + ly * SCREEN_HEIGHT;
+			// if (idx > 92160)
+			fprintf(stderr, "BAD IDX: writing vbuffer[%u] = %u\n", idx, pd);
+			ctx.vbuffer[idx] = pd;
+			fifo_ctx.pushed_x++;
+		}
+
+		fifo_ctx.line_x++;
+	}
+}
+
+void ppu_fifo_tick() {
+	u8 ly = bus_read(ADDR_LY);
+	u8 sy = bus_read(ADDR_SCY);
+	u8 sx = bus_read(ADDR_SCX);
+	fifo_ctx.map_y = ly + sy;
+	fifo_ctx.map_x = fifo_ctx.fetch_x + sx;
+	fifo_ctx.tile_y = ((ly + sy) % 8) * 2;
+
+	if (!(ctx.ticks & 1)) {
+		ppu_fifo_fetch();
+	}
+
+	// ppu_fifo_push();
+}
+
+// copies into OAM space 
 void ppu_oam_tick() {
 	if (ctx.oam_src) {
 		// wait until delay
@@ -78,7 +194,6 @@ void ppu_oam_tick() {
 			return;
 		}
 
-		// copy tile data into OAM space
 		u8 t = bus_read(ctx.oam_src + ctx.oam_pos);
 		bus_io_write(ADDR_OAM + ctx.oam_pos, t);
 		if (++ctx.oam_pos >= OAM_SIZE) {
@@ -91,10 +206,17 @@ void ppu_oam_tick() {
 void ppu_oam_scan_tick() {
 	if (ctx.ticks >= 80) {
 		lcd_set_mode(MODE_OAM_XFER);
+
+		fifo_ctx.mode = FIFO_MODE_TILE;
+		fifo_ctx.line_x = 0;
+		fifo_ctx.pushed_x = 0;
+		fifo_ctx.fetch_x = 0;
+		fifo_ctx.fifo_x = 0;
 	}
 }
 
 void ppu_oam_xfer_tick() {
+	ppu_fifo_tick();
 	if (ctx.ticks >= (80 + 172)) {
 		lcd_set_mode(MODE_HBLANK);
 	}
@@ -129,12 +251,12 @@ void ppu_hblank_tick() {
 			u32 t = gbc_get_ticks();
 			u32 frame_time = t - prev_frame_time;
 			if (frame_time < target_frame_time) {
-				fprintf(stderr, "delaying....\n");
-				gbc_delay(target_frame_time - frame_time);
+				u32 d = target_frame_time - frame_time;
+				gbc_delay(d);
 			}
 
 			if ((t - start_timer) >= 1000) {
-				fprintf(stderr, "FPS=%lu\n", frame_count);
+				fprintf(stderr, "DEBUG: FPS=%lu\n", frame_count);
 				start_timer = t;
 				frame_count = 0;
 			}
@@ -170,12 +292,25 @@ void ppu_tick() {
 }
 
 void ppu_init() {
-	if (ctx.vbuffer != NULL)
-		free(ctx.vbuffer);
+	// if (ctx.vbuffer != NULL)
+	// 	free(ctx.vbuffer);
 	memset(&ctx, 0, sizeof(ctx));
+
+	ctx.current_frame = 0;
+	ctx.ticks = 0;
+	ctx.vbuffer = calloc(1, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(u32));
+	fifo_ctx.line_x = 0;
+	fifo_ctx.pushed_x = 0;
+	fifo_ctx.fetch_x = 0;
+	fifo_ctx.pixel_fifo.size = 0;
+	fifo_ctx.pixel_fifo.head = NULL;
+	fifo_ctx.pixel_fifo.tail = NULL;
+	fifo_ctx.mode = FIFO_MODE_TILE;
 
 	lcd_init();
 	lcd_set_mode(MODE_OAM_SCAN);
+}
 
-	ctx.vbuffer = calloc(1, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(u32));
+ppu_context *ppu_get_context() {
+	return &ctx;
 }
