@@ -1,6 +1,4 @@
-#pragma once
-
-#include <common.h>
+#include "common.h"
 
 typedef struct {
 	// 0100-0103 main exec address
@@ -29,7 +27,7 @@ typedef struct {
 	rom_header *header;
 } cart_context;
 
-cart_context *get_cart_context();
+cart_context *cart_get_context();
 bool cart_init(const char *cart_filepath);
 u8 cart_read(u16 addr);
 void cart_debug();

@@ -11,3 +11,4 @@ void ppu_init();
 void ppu_tick();
 void ppu_dma_start(u8 addr);
 bool ppu_dma_is_transferring();
+u32 ppu_get_current_frame();

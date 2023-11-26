@@ -14,7 +14,7 @@ static uint8_t scrolling_logo[] = {
 
 static cart_context ctx;
 
-cart_context *get_cart_context() {
+cart_context *cart_get_context() {
     return &ctx;
 }
 
@@ -27,7 +27,7 @@ bool cart_init(const char *cart_filepath) {
 
     FILE *file = fopen(cart_filepath, "rb");
     if (!file) {
-        perror("Failed to open file.");
+        fprintf(stderr, "ERROR: missing ROM: %s\n", cart_filepath);
         return false;
     }
 
@@ -35,7 +35,7 @@ bool cart_init(const char *cart_filepath) {
     ctx.rom_size = ftell(file);
 
     // TODO: enforce max rom size
-    ctx.rom_data = malloc(ctx.rom_size);
+    ctx.rom_data = calloc(1, ctx.rom_size);
 	if (ctx.rom_data == NULL) {
 		fprintf(stderr, "memory allocation failed!\n");
         fclose(file);
@@ -68,20 +68,19 @@ bool cart_init(const char *cart_filepath) {
     for (int i = 0x0134; i <= 0x014C; i++)
     	checksum = checksum - (ctx.rom_data[i] - 1);
     bool r_checksum = (checksum & 0xFF);
-    // printf("DEBUG: CHECKSUM: %2.2X (%s)\n", ctx.header->checksum, r_checksum ? "PASSED" : "FAILED");
+    printf("DEBUG: CHECKSUM: %2.2X (%s)\n", ctx.header->checksum, r_checksum ? "PASSED" : "FAILED");
     return r_checksum;
 }
 
 void cart_debug() {
-    printf("CARTRIDGE LOADED:\n");
-    printf("\tPATH     : %s\n",    ctx.filepath);
-    printf("\tTITLE    : %s\n",    ctx.header->game_title);
-    printf("\tTYPE     : %2.2X\n", ctx.header->type);
-    printf("\tROM SIZE : %d KB\n", 32 << ctx.header->rom_size);
-    printf("\tRAM SIZE : %2.2X\n", ctx.header->ram_size);
-    printf("\tLIC CODE : %2.2X\n", ctx.header->license_code);
-    printf("\tROM VERS : %2.2X\n", ctx.header->version);
-    printf("\tPC       : 0x%02X%02X%02X%02X\n",
+    fprintf(stderr, "CARTRIDGE LOADED:\n");
+    fprintf(stderr, "\tTITLE    : %s\n",    ctx.header->game_title);
+    fprintf(stderr, "\tTYPE     : %2.2X\n", ctx.header->type);
+    fprintf(stderr, "\tROM SIZE : %d KB\n", 32 << ctx.header->rom_size);
+    fprintf(stderr, "\tRAM SIZE : %2.2X\n", ctx.header->ram_size);
+    fprintf(stderr, "\tLIC CODE : %2.2X\n", ctx.header->license_code);
+    fprintf(stderr, "\tROM VERS : %2.2X\n", ctx.header->version);
+    fprintf(stderr, "\tPC       : 0x%02X%02X%02X%02X\n",
         ctx.header->entry_point[0],
         ctx.header->entry_point[1],
         ctx.header->entry_point[2],

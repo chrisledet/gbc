@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 typedef struct {
-	u32 div;
+	u16 div;
 	u8 tima;
 	u8 tma;
 	u8 tac;
@@ -42,7 +42,7 @@ void timer_write(u16 addr, u8 val) {
 }
 
 bool timer_tick() {
-	u32 p_div = ctx.div++;
+	u16 p_div = ctx.div++;
 	bool timer_update = false;
 	switch (ctx.tac & 0x3) {
 		case 0x0:

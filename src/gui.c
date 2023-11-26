@@ -14,10 +14,7 @@ typedef struct {
 	SDL_Surface *dbgSurface;
 } gui_context;
 
-static const u32 SCREEN_WIDTH = 160;
-static const u32 SCREEN_HEIGHT = 144;
-static const u16 TILE_SIZE = 16;
-static int scale = 4;
+static int scale = 2;
 
 static gui_context ctx = {0};
 

@@ -1,7 +1,4 @@
-#include <stdint.h>
-#include <stdbool.h>
-
-#include <common.h>
+#include "common.h"
 
 typedef struct {
 	bool debug_mode;

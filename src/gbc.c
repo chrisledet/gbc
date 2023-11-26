@@ -32,6 +32,15 @@ gbc_context* gbc_get_context() {
     return &ctx;
 }
 
+void gbc_delay(u32 ms) {
+    SDL_Delay(ms);
+}
+
+u32 gbc_get_ticks() {
+    return SDL_GetTicks();
+}
+
+
 int gbc_sys_run(void* data) {
     ctx.debug_mode = true;
     ctx.ticks = 0;
@@ -44,36 +53,42 @@ int gbc_sys_run(void* data) {
     while (ctx.running) {
         int cycles = 0;
 
-        if (ctx.debug_mode)
-            cpu_debug();
+        // if (ctx.debug_mode)
+            // cpu_debug();
         
-        ppu_tick();
         cycles += cpu_step();
-        if (timer_tick())
+        // if (timer_tick())
             cpu_request_interrupt(INTERRUPT_TIMER);
+        ppu_tick();
     }
     return 0;
 }
 
 int gbc_run(const char *rom_filepath) {
-    // load cartridge / rom
-    if (!cart_init(rom_filepath)) {
-        fprintf(stderr, "ERR: cartridge load failure\n");
+    // Load ROM
+    if (!cart_init(rom_filepath))
         return -1;
-    }
-    // cart_debug();
-    cart_context *cart_ctx = get_cart_context();
-    bus_init(cart_ctx);
+
+    fprintf(stderr, "GBC STARTED\n");
+    fprintf(stderr, "WAITING FOR ROM...\n");
+    fprintf(stderr, "ROM?>: %s\n", rom_filepath);
+    cart_debug();
 
     // System
+    bus_init();
     SDL_CreateThread(gbc_sys_run, "gbc cpu", NULL);
 
     // UI
     gui_init();
+    u32 prev_frame = 0;
     while (ctx.running) {
-        SDL_Delay(1);
-        gui_tick();
+        gbc_delay(1);
         ctx.running = !(gui_handle_input() & GUI_QUIT);
+
+        if (ppu_get_current_frame() != prev_frame) {
+            gui_tick();
+        }
+        prev_frame = ppu_get_current_frame();
     }
 
     return 0;
