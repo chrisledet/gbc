@@ -1,11 +1,13 @@
 #include "bus.h"
 
+#include "cart.h"
+#include "ppu.h"
+#include "lcd.h"
+#include "timer.h"
+
 #include <stdio.h>
 #include <string.h>
-
-#include <cart.h>
-#include <ppu.h>
-#include <timer.h>
+#include <SDL.h>
 
 // 16-bit address bus
 // 0x0000-0x7FFF 	 : PROGRAM DATA
@@ -40,14 +42,14 @@ typedef struct {
 	u8 *ram;  // banked ram
 	u8 *vram; // banked vram
 	bool ram_enabled;
-	bool dma_transfer;
 } bus_ctx;
 
 static bus_ctx ctx = { 0 };
 
-void bus_init(const cart_context* cart_ctx) {
+void bus_init() {
+	cart_context* cart_ctx = cart_get_context();
 	if (cart_ctx == NULL) {
-		printf("ERR: NO CART LOADED!\n");
+		fprintf(stderr, "ERR: NO CART LOADED!\n");
 		return;
 	}
 
@@ -106,9 +108,9 @@ void bus_init(const cart_context* cart_ctx) {
 	ctx.mem[ADDR_SCX] = 0x00;
 	ctx.mem[ADDR_LY] = 0x00;
 	ctx.mem[ADDR_LYC] = 0x00;
-	// ctx.mem[ADDR_BGP] = 0xFC;
-	// ctx.mem[ADDR_OBP0] = 0xFF;
-	// ctx.mem[ADDR_OBP1] = 0xFF;
+	ctx.mem[ADDR_BGP] = 0xFC;
+	ctx.mem[ADDR_OBP0] = 0xFF;
+	ctx.mem[ADDR_OBP1] = 0xFF;
 	// ctx.mem[ADDR_WY] = 0x00;
 	// ctx.mem[ADDR_WX] = 0x00;
 	// ctx.mem[ADDR_HDMA5] = 0xFF;
@@ -143,8 +145,8 @@ u8 bus_read(u16 addr) {
 	} else if (addr < 0xFE9F) {
 		// 0xFE00 - 0xFE9F
 		// when OAM blocked return 0xFF;
-		// if (ctx.dma_transfer)
-			// return 0xFF;
+		if (ppu_dma_is_transferring())
+			return 0xFF;
 		return ctx.mem[addr];
 	} else if (addr < 0xFEFF) {
 		// 0xFEA0 - 0xFE9F
@@ -152,6 +154,8 @@ u8 bus_read(u16 addr) {
 		return 0x0;
 	} else if (addr < 0xFF80) {
 		switch (addr) {
+			case ADDR_BGP:
+				// TODO
 			case ADDR_DIV:
 				return timer_read(ADDR_DIV);
 			case ADDR_TIMA:
@@ -170,7 +174,10 @@ u8 bus_read(u16 addr) {
 				return ctx.mem[addr];
 			break;
 			case ADDR_LY:
-				return 0x90;
+				return ctx.mem[addr]++;
+			break;
+			case ADDR_LYC:
+				return ctx.mem[addr];
 			break;
 			default:
 				return ctx.mem[addr];
@@ -181,7 +188,7 @@ u8 bus_read(u16 addr) {
 	} else if (addr == 0xFFFF) {
 		return ctx.mem[addr]; // ie
 	} else {
-		printf("ERR: bus_read not supported at address: %02X\n", addr);
+		fprintf(stderr, "ERR: bus_read not supported at address: %02X\n", addr);
 	}
 
 	return 0x0;
@@ -236,18 +243,31 @@ void bus_write(u16 addr, u8 val) {
 			case ADDR_IF:
 				ctx.mem[addr] = 0xE0 | val;
 			break;
-			case ADDR_LCDC:
-				ctx.mem[addr] = val;
+			case ADDR_LCDC: {
+				if (BIT(val, 7))
+					ctx.mem[addr] |= 0x80;
+				else
+					ctx.mem[addr] &= 0x7f;
+			}
 			break;
 			case ADDR_STAT:
-				ctx.mem[addr] = val & 0xFC;
+				// first two bits are read only
+				ctx.mem[addr] |= val & 0xFC;
 			break;
 			case ADDR_LY:
 				ctx.mem[addr] = val;
 			break;
 			case ADDR_DMA_TRANSFER:
-				ctx.dma_transfer = true;
 				ppu_dma_start(val);
+			break;
+			case ADDR_BGP:
+				lcd_update_palette(val, LCD_PALETTE_BG);
+			break;
+			case ADDR_OBP0:
+				lcd_update_palette(val, LCD_PALETTE_OBJ0);
+			break;
+			case ADDR_OBP1:
+				lcd_update_palette(val, LCD_PALETTE_OBJ1);
 			break;
 			default:
 				ctx.mem[addr] = val;
@@ -258,7 +278,7 @@ void bus_write(u16 addr, u8 val) {
 	} else if (addr == 0xFFFF) {
 		ctx.mem[addr] = val;
 	} else {
-		//printf("ERR: bus_write not supported at address: %02X\n", addr);
+		//fprintf(stderr, "ERR: bus_write not supported at address: %02X\n", addr);
 		ctx.mem[addr] = val;
 	}
 }
@@ -266,4 +286,8 @@ void bus_write(u16 addr, u8 val) {
 void bus_write16(u16 addr, u16 val) {
 	bus_write(addr, val & 0xFF);
 	bus_write(addr+1, (val >> 8) & 0xFF);
+}
+
+void bus_io_write(u16 addr, u8 v) {
+	ctx.mem[addr] = v;
 }

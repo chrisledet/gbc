@@ -1,4 +1,4 @@
-#include <cpu.h>
+#include "cpu.h"
 
 #include <stdio.h>
 
@@ -65,7 +65,7 @@ u8 cpu_read_reg(cpu_register r) {
 	if (reg8ptr != NULL) {
 		return *reg8ptr;
 	} else {
-		printf("ERR: invalid 8-bit register: %.02X\n", r);
+		fprintf(stderr, "ERR: invalid 8-bit register: %.02X\n", r);
 	}
 	return 0;
 }
@@ -84,7 +84,7 @@ void cpu_write_reg16(cpu_register r, u16 v) {
 	if (reg16ptr != NULL) {
 		*reg16ptr = v;
 	} else {
-		printf("ERR: invalid 16bit register: %.02X\n", r);
+		fprintf(stderr, "ERR: invalid 16bit register: %.02X\n", r);
 	}
 }
 
@@ -269,7 +269,7 @@ void cpu_fetch_data() {
 			ctx.fetched_data =  ctx.current_instruction.parameter;
 		break;
 		default:
-			printf("ERR: address mode not supported: %02X\n", ctx.current_instruction.mode);
+			fprintf(stderr, "ERR: address mode not supported: %02X\n", ctx.current_instruction.mode);
 		break;
 	}
 }
@@ -809,20 +809,20 @@ void cpu_init() {
 
 void cpu_debug() {
 	// game boy doctor format
-	printf("A:%02X F:%02X B:%02X C:%02X D:%02X E:%02X H:%02X L:%02X SP:%04X PC:%04X PCMEM:%02X,%02X,%02X,%02X\n",
-		cpu_read_reg(REG_A), cpu_read_reg(REG_F), cpu_read_reg(REG_B), cpu_read_reg(REG_C), cpu_read_reg(REG_D), cpu_read_reg(REG_E), cpu_read_reg(REG_H), cpu_read_reg(REG_L), ctx.registers.SP, ctx.registers.PC,
-		bus_read(ctx.registers.PC), bus_read(ctx.registers.PC + 1), bus_read(ctx.registers.PC + 2), bus_read(ctx.registers.PC + 3)
-	);
+	// printf("A:%02X F:%02X B:%02X C:%02X D:%02X E:%02X H:%02X L:%02X SP:%04X PC:%04X PCMEM:%02X,%02X,%02X,%02X\n",
+	// 	cpu_read_reg(REG_A), cpu_read_reg(REG_F), cpu_read_reg(REG_B), cpu_read_reg(REG_C), cpu_read_reg(REG_D), cpu_read_reg(REG_E), cpu_read_reg(REG_H), cpu_read_reg(REG_L), ctx.registers.SP, ctx.registers.PC,
+	// 	bus_read(ctx.registers.PC), bus_read(ctx.registers.PC + 1), bus_read(ctx.registers.PC + 2), bus_read(ctx.registers.PC + 3)
+	// );
 
-    // printf("PC: 0x%04X (%02X %02X %02X %02X) | AF: %02X%02X, BC: %02X%02X, DE: %02X%02X, HL: %02X%02X, SP: %04X, cycles: %04d | FLAGS Z=%d N=%d H=%d C=%d | DIV: %02X | TIMA: %02X | TMA: %02X | TAC: %02X\n",
-    //    ctx.registers.PC,
-    //    bus_read(ctx.registers.PC),
-    //    bus_read(ctx.registers.PC+1),
-    //    bus_read(ctx.registers.PC+2),
-    //    bus_read(ctx.registers.PC+3),
-    //    cpu_read_reg(REG_A), cpu_read_reg(REG_F), cpu_read_reg(REG_B), cpu_read_reg(REG_C), cpu_read_reg(REG_D), cpu_read_reg(REG_E), cpu_read_reg(REG_H), cpu_read_reg(REG_L), ctx.registers.SP, ctx.cycles,
-    //    CPU_FLAG_Z, CPU_FLAG_N, CPU_FLAG_H, CPU_FLAG_C,
-    //    timer_read(ADDR_DIV), timer_read(ADDR_TIMA), timer_read(ADDR_TMA), timer_read(ADDR_TAC));
+    printf("PC: 0x%04X (%02X %02X %02X %02X) | AF: %02X%02X, BC: %02X%02X, DE: %02X%02X, HL: %02X%02X, SP: %04X, cycles: %04d | FLAGS Z=%d N=%d H=%d C=%d | DIV: %02X | TIMA: %02X | TMA: %02X | TAC: %02X\n",
+       ctx.registers.PC,
+       bus_read(ctx.registers.PC),
+       bus_read(ctx.registers.PC+1),
+       bus_read(ctx.registers.PC+2),
+       bus_read(ctx.registers.PC+3),
+       cpu_read_reg(REG_A), cpu_read_reg(REG_F), cpu_read_reg(REG_B), cpu_read_reg(REG_C), cpu_read_reg(REG_D), cpu_read_reg(REG_E), cpu_read_reg(REG_H), cpu_read_reg(REG_L), ctx.registers.SP, ctx.cycles,
+       CPU_FLAG_Z, CPU_FLAG_N, CPU_FLAG_H, CPU_FLAG_C,
+       timer_read(ADDR_DIV), timer_read(ADDR_TIMA), timer_read(ADDR_TMA), timer_read(ADDR_TAC));
 }
 
 u8 cpu_execute_interrupts() {
@@ -852,8 +852,8 @@ u8 cpu_execute_interrupts() {
 
 	if (interrupt_addr && interrupt_flag) {
 		ctx.ime = false;
-		ctx.registers.PC -= 2;
-		ctx.registers.SP = ctx.registers.PC;
+		ctx.registers.SP -= 2;
+		bus_write16(ctx.registers.SP, ctx.registers.PC);
 		ctx.registers.PC = interrupt_addr;
 		cycles = 20;
 		bus_write(ADDR_IF, ifs & ~interrupt_flag);

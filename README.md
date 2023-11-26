@@ -10,13 +10,12 @@ Game Boy Color emulator
 
 ## Dependencies
 
-* SDL3 (included)
+* SDL (included)
 
 
-## Layout
+## Project Layout
 
 - externals: third party libraries
-- include: header files for emulator
 - src: source code for emulator
 - test: tests and data
 
@@ -28,7 +27,7 @@ Run the following commands inside gbc directory:
 	cmake --build build [--config Release]
 
 
-You should see `gbc` and `SDL3` binaries in the Debug (or Release) within build directory.
+You should see `gbc` and `SDL` binaries in the Debug (or Release) within build directory.
 
 
 ## Run

@@ -1,10 +1,8 @@
-#pragma once
+#include "common.h"
+#include "instruct.h"
 
-#include <common.h>
-#include <instruct.h>
 #include <stdbool.h>
 #include <stdint.h>
-
 
 typedef union {
 	u16 val;

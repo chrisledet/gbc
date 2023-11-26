@@ -1,7 +1,7 @@
+#include "gbc.h"
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <gbc.h>
-
 
 int main(int argc, const char *argv[])
 {
@@ -9,8 +9,5 @@ int main(int argc, const char *argv[])
         fprintf(stderr, "Usage: gbc <rom filepath>\n");
         return EXIT_FAILURE;
     }
-
-	gbc_run(argv[1]);
-
-	return EXIT_SUCCESS;
+	return gbc_run(argv[1]);
 }

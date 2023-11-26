@@ -1,7 +1,6 @@
 #pragma once
 
-#include <cart.h>
-#include <common.h>
+#include "common.h"
 
 // 16-bit address bus
 // 0x0000-0x7FFF 	 : PROGRAM DATA
@@ -22,30 +21,9 @@
 	// 0xFF00-0xFF7F : IO REGISTERS
 	// 0xFF80-0xFFFE : CPU work / stack RAM
 
-#define ADDR_OAM 0xFE00
-
-#define ADDR_JOYPAD 0xFF00
-#define ADDR_SB 0xFF01
-#define ADDR_SC 0xFF02
-#define ADDR_DIV 0xFF04
-#define ADDR_TIMA 0xFF05
-#define ADDR_TMA 0xFF06
-#define ADDR_TAC 0xFF07
-#define ADDR_IF 0xFF0F
-
-#define ADDR_LCDC 0xFF40
-#define ADDR_STAT 0xFF41
-#define ADDR_SCY 0xFF42
-#define ADDR_SCX 0xFF43
-#define ADDR_LY 0xFF44
-#define ADDR_LYC 0xFF45
-#define ADDR_DMA_TRANSFER 0xFF46
-#define ADDR_WY 0xFF4A
-#define ADDR_WX 0xFF48 // window.x - 7
-#define ADDR_KEY1 0xFF4D
-
-void bus_init(const cart_context* cart_ctx);
+void bus_init();
 u8 bus_read(u16 addr);
 u16 bus_read16(u16 addr);
 void bus_write(u16 addr, u8 val);
 void bus_write16(u16 addr, u16 val);
+void bus_io_write(u16 addr, u8 v);

@@ -7,8 +7,6 @@ set(BUILD_SHARED_LIBS OFF)
 add_subdirectory(externals)
 
 set(CMAKE_C_STANDARD 23)
-file(GLOB SOURCES "src/*.c" "include/*.h")
-include_directories(include)
 
 if (MSVC)
     add_compile_options(/W4)
@@ -16,6 +14,7 @@ else()
     add_compile_options(-Wall)
 endif()
 
+file(GLOB SOURCES "src/*")
 add_executable(gbc ${SOURCES})
 
 if (TARGET SDL2::SDL2main)
