@@ -1,12 +1,6 @@
 #include "lcd.h"
 #include "bus.h"
 
-typedef struct {
-	u32 bg_colors[4];
-	u32 sp1_colors[4];
-	u32 sp2_colors[4];
-} lcd_context;
-
 static lcd_context ctx = {0};
 static unsigned long default_colors[4] = {0xFFFFFFFF, 0xFFAAAAAA, 0xFF555555, 0xFF000000};
 
@@ -31,14 +25,41 @@ void lcd_set_mode(lcd_mode mode) {
 	bus_io_write(ADDR_STAT, m);
 }
 
-bool lcd_is_bgw_enabled() 	{ return (bus_read(ADDR_LCDC) & 0x01); }
-bool lcd_is_obj_enabled() 	{ return (bus_read(ADDR_LCDC) & 0x02); }
-u8 lcd_obj_size()			{ return (bus_read(ADDR_LCDC) & 0x04) ? 0x10 : 0x8; }
-u16 lcd_bg_map()			{ return (bus_read(ADDR_LCDC) & 0x08) ? 0x9C00 : 0x9800; }
-u16 lcd_bg_tile()			{ return (bus_read(ADDR_LCDC) & 0x10) ? 0x8000 : 0x8800; }
-bool lcd_is_win_enabled()	{ return (bus_read(ADDR_LCDC) & 0x20); }
-u16 lcd_win_tile_map()		{ return (bus_read(ADDR_LCDC) & 0x40) ? 0x9C00 : 0x9800; }
-bool lcd_is_enabled()		{ return (bus_read(ADDR_LCDC) & 0x80); }
+bool lcd_is_bgw_enabled() {
+	return (bus_read(ADDR_LCDC) & 0x01); 
+}
+
+bool lcd_is_obj_enabled() {
+	return (bus_read(ADDR_LCDC) & 0x02); 
+}
+
+u8 lcd_obj_size() {
+	return (bus_read(ADDR_LCDC) & 0x04) ? 0x10 : 0x8; 
+}
+
+u16 lcd_bg_map_addr() {
+	return (bus_read(ADDR_LCDC) & 0x08) ? 0x9C00 : 0x9800; 
+}
+
+u16 lcd_bgw_data_addr() {
+	return (bus_read(ADDR_LCDC) & 0x10) ? 0x8000 : 0x8800; 
+}
+
+bool lcd_is_win_enabled() {
+	return (bus_read(ADDR_LCDC) & 0x20); 
+}
+
+u16 lcd_win_tile_map_addr() {
+	return (bus_read(ADDR_LCDC) & 0x40) ? 0x9C00 : 0x9800; 
+}
+
+bool lcd_is_enabled() {
+	return (bus_read(ADDR_LCDC) & 0x80); 
+}
+
+lcd_context *lcd_get_context() {
+	return &ctx;
+}
 
 void lcd_update_palette(u8 palette_idx, u8 palette_data) {
 	u32 *bg_colors = ctx.bg_colors;
