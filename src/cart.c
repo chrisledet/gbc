@@ -68,7 +68,7 @@ bool cart_init(const char *cart_filepath) {
     for (int i = 0x0134; i <= 0x014C; i++)
     	checksum = checksum - (ctx.rom_data[i] - 1);
     bool r_checksum = (checksum & 0xFF);
-    printf("DEBUG: CHECKSUM: %2.2X (%s)\n", ctx.header->checksum, r_checksum ? "PASSED" : "FAILED");
+    // fprintf(stderr, "DEBUG: CHECKSUM: %2.2X (%s)\n", ctx.header->checksum, r_checksum ? "PASSED" : "FAILED");
     return r_checksum;
 }
 

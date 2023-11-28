@@ -135,15 +135,20 @@ u8 bus_read(u16 addr) {
 	} else if (addr < 0xFF80) {
 		switch (addr) {
 			case ADDR_BGP:
-				// TODO
+				return ctx.mem[addr];
+			break;
 			case ADDR_DIV:
 				return timer_read(ADDR_DIV);
+			break;
 			case ADDR_TIMA:
 				return timer_read(ADDR_TIMA);
+			break;
 			case ADDR_TMA:
 				return timer_read(ADDR_TMA);
+			break;
 			case ADDR_TAC:
 				return timer_read(ADDR_TAC);
+			break;
 			case ADDR_IF:
 				return ctx.mem[addr];
 			break;
@@ -154,19 +159,20 @@ u8 bus_read(u16 addr) {
 				return ctx.mem[addr];
 			break;
 			case ADDR_LY:
-				return ctx.mem[addr]++;
+				return ctx.mem[addr];
 			break;
 			case ADDR_LYC:
 				return ctx.mem[addr];
 			break;
 			default:
 				return ctx.mem[addr];
+			break;
 		}
 	} else if (addr < 0xFFFF) {
 		// high ram
 		return ctx.mem[addr];
-	} else if (addr == 0xFFFF) {
-		return ctx.mem[addr]; // ie
+	} else if (addr == ADDR_IE) {
+		return ctx.mem[addr];
 	} else {
 		fprintf(stderr, "ERR: bus_read not supported at address: %02X\n", addr);
 	}
@@ -208,6 +214,12 @@ void bus_write(u16 addr, u8 val) {
 				// TODO
 				ctx.mem[ADDR_JOYPAD] = val;
 			break;
+			case ADDR_SB:
+				ctx.mem[ADDR_SB] = val;
+			break;
+			case ADDR_SC:
+				ctx.mem[ADDR_SC] = val;
+			break;
 			case ADDR_DIV:
 				timer_write(ADDR_DIV, val);
 			break;
@@ -221,7 +233,23 @@ void bus_write(u16 addr, u8 val) {
 				timer_write(ADDR_TAC, val);
 			break;
 			case ADDR_IF:
-				ctx.mem[addr] = 0xE0 | val;
+				ctx.mem[ADDR_IF] = 0xE0 | val;
+			break;
+			case ADDR_NR50:
+			case ADDR_NR51:
+				ctx.mem[addr] = val;
+			break;
+			case ADDR_NR52:
+				// only last bit should be read to control master audio
+				// other bits will be set through io writes instead
+				// within future apu system.
+				ctx.mem[ADDR_NR52] = (val & 0x80);
+			break;
+			case ADDR_SCY:
+				ctx.mem[ADDR_SCY] = val;
+			break;
+			case ADDR_SCX:
+				ctx.mem[ADDR_SCX] = val;
 			break;
 			case ADDR_LCDC: {
 				if (BIT(val, 7))
@@ -234,9 +262,9 @@ void bus_write(u16 addr, u8 val) {
 				// first two bits are read only
 				ctx.mem[addr] |= val & 0xFC;
 			break;
-			case ADDR_LY:
-				ctx.mem[addr] = val;
-			break;
+			// case ADDR_LY:
+				// ctx.mem[addr] = val;
+			// break;
 			case ADDR_DMA_TRANSFER:
 				ppu_dma_start(val);
 			break;
@@ -250,7 +278,8 @@ void bus_write(u16 addr, u8 val) {
 				lcd_update_palette(val, LCD_PALETTE_OBJ1);
 			break;
 			default:
-				ctx.mem[addr] = val;
+				fprintf(stderr, "ERR: unhandled addr=%02X val=%02X\n", addr, val);
+				// ctx.mem[addr] = val;
 			break;
 		}
 	} else if (addr >= 0xFF80 && addr < 0xFFFF) {
@@ -258,8 +287,8 @@ void bus_write(u16 addr, u8 val) {
 	} else if (addr == 0xFFFF) {
 		ctx.mem[addr] = val;
 	} else {
-		//fprintf(stderr, "ERR: bus_write not supported at address: %02X\n", addr);
-		ctx.mem[addr] = val;
+		fprintf(stderr, "ERR: unhandled addr=%02X val=%02X\n", addr, val);
+		// ctx.mem[addr] = val;
 	}
 }
 
@@ -269,5 +298,6 @@ void bus_write16(u16 addr, u16 val) {
 }
 
 void bus_io_write(u16 addr, u8 v) {
-	ctx.mem[addr] = v;
+	if (addr >= 0xF000 && addr <= 0xFFFF)
+		ctx.mem[addr] = v;
 }
