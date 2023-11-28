@@ -51,12 +51,10 @@ int gbc_sys_run(void* data) {
     ppu_init();    
 
     while (ctx.running) {
-        int cycles = 0;
+//        if (ctx.debug_mode)
+//            cpu_debug();
 
-        if (ctx.debug_mode)
-            cpu_debug();
-        
-        cycles += cpu_step();
+        cpu_step();
         if (timer_tick())
             cpu_request_interrupt(INTERRUPT_TIMER);
         ppu_tick();

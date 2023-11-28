@@ -32,7 +32,7 @@ void ppu_dma_start(u8 addr) {
 }
 
 bool ppu_dma_is_transferring() {
-	return ctx.oam_pos < OAM_SIZE;
+	return !!ctx.oam_src;
 }
 
 u32 ppu_get_current_frame() {
@@ -78,7 +78,6 @@ void ppu_fifo_pixel_push(u32 color) {
 
 u32 ppu_fifo_pixel_pop() {
 	if (fifo_ctx.pixel_fifo.size <= 0) {
-		fprintf(stderr, "FIFO size is empty!!\n");
 		return 0;
 	}
 
@@ -88,6 +87,13 @@ u32 ppu_fifo_pixel_pop() {
 	u32 c = e->color;
 	free(e);
 	return c;
+}
+
+void ppu_fifo_reset() {
+	while (fifo_ctx.pixel_fifo.size)
+		ppu_fifo_pixel_pop();
+	
+	fifo_ctx.pixel_fifo.head = 0;
 }
 
 bool ppu_fifo_add() {
@@ -128,13 +134,13 @@ void ppu_fifo_fetch() {
 		}
 		break;
 		case FIFO_MODE_DATA0: {
-			u16 idx = fifo_ctx.bgw_fetch[0] * 16 + fifo_ctx.tile_y;
+			u16 idx = fifo_ctx.bgw_fetch[1] * 16 + fifo_ctx.tile_y;
 			fifo_ctx.bgw_fetch[1] = bus_read(lcd_bgw_data_addr() + idx);
 			fifo_ctx.mode = FIFO_MODE_DATA1;
 		}
 		break;
 		case FIFO_MODE_DATA1: {
-			u16 idx = fifo_ctx.bgw_fetch[0] * 16 + (fifo_ctx.tile_y + 1);
+			u16 idx = fifo_ctx.bgw_fetch[2] * 16 + (fifo_ctx.tile_y + 1);
 			fifo_ctx.bgw_fetch[2] = bus_read(lcd_bgw_data_addr() + idx);
 			fifo_ctx.mode = FIFO_MODE_IDLE;
 		}
@@ -152,17 +158,14 @@ void ppu_fifo_fetch() {
 }
 
 void ppu_fifo_push() {
-	// fprintf(stderr, "fifo_ctx.pixel_fifo.size: %u\n", fifo_ctx.pixel_fifo.size);
 	if (fifo_ctx.pixel_fifo.size > 8) {
-		u32 pd = ppu_fifo_pixel_pop();
+		u32 color = ppu_fifo_pixel_pop();
 		u8 ly = bus_read(ADDR_LY);
 		u8 sx = bus_read(ADDR_SCX);
 
 		if (fifo_ctx.line_x >= (sx & 8)) {
-			int idx = fifo_ctx.pushed_x + ly * SCREEN_HEIGHT;
-			// if (idx > 92160)
-			fprintf(stderr, "BAD IDX: writing vbuffer[%u] = %u\n", idx, pd);
-			ctx.vbuffer[idx] = pd;
+			int idx = fifo_ctx.pushed_x + ly * SCREEN_WIDTH;
+			ctx.vbuffer[idx] = color;
 			fifo_ctx.pushed_x++;
 		}
 
@@ -182,11 +185,10 @@ void ppu_fifo_tick() {
 		ppu_fifo_fetch();
 	}
 
-	// ppu_fifo_push();
+	ppu_fifo_push();
 }
-
-// copies into OAM space 
-void ppu_oam_tick() {
+ 
+void ppu_copy_into_oam() {
 	if (ctx.oam_src) {
 		// wait until delay
 		if (ctx.dma_delay) {
@@ -217,8 +219,13 @@ void ppu_oam_scan_tick() {
 
 void ppu_oam_xfer_tick() {
 	ppu_fifo_tick();
-	if (ctx.ticks >= (80 + 172)) {
+	if (fifo_ctx.pushed_x >= SCREEN_WIDTH) {
+		ppu_fifo_reset();
 		lcd_set_mode(MODE_HBLANK);
+
+		u8 stat = bus_read(ADDR_STAT);
+		if (BIT(stat, 3))
+			cpu_request_interrupt(INTERRUPT_LCD_STAT);
 	}
 }
 
@@ -288,7 +295,7 @@ void ppu_tick() {
 			ppu_hblank_tick();
 		break;
 	}
-	ppu_oam_tick();
+	ppu_copy_into_oam();
 }
 
 void ppu_init() {
@@ -298,7 +305,7 @@ void ppu_init() {
 
 	ctx.current_frame = 0;
 	ctx.ticks = 0;
-	ctx.vbuffer = calloc(1, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(u32));
+	ctx.vbuffer = calloc(1, SCREEN_WIDTH * SCREEN_HEIGHT * sizeof(int));
 	fifo_ctx.line_x = 0;
 	fifo_ctx.pushed_x = 0;
 	fifo_ctx.fetch_x = 0;

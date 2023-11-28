@@ -21,7 +21,6 @@ static int scale = 2;
 
 static gui_context ctx = {0};
 
-//static unsigned long color_palette[4] = {0xFF000000, 0xFF000000, 0xFF000000, 0xFF000000}; // black + white
 static unsigned long color_palette[4] = { 0xFF9BBC0F, 0xFF8BAC0F, 0xFF306230, 0xFF0F380F }; // greenish
 
 SDL_Surface* gui_get_surface() {
@@ -36,12 +35,12 @@ void gui_init() {
 	// 	SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 	// 	SCREEN_WIDTH * scale, SCREEN_HEIGHT * scale,
 	// 	SDL_WINDOW_SHOWN);
-	SDL_CreateWindowAndRenderer(SCREEN_WIDTH, SCREEN_HEIGHT, 0, &ctx.window, &ctx.renderer);
+	SDL_CreateWindowAndRenderer(SCREEN_WIDTH*scale, SCREEN_HEIGHT*scale, 0, &ctx.window, &ctx.renderer);
 	ctx.surface = SDL_CreateRGBSurface(0, SCREEN_WIDTH, SCREEN_HEIGHT,
 		32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
 	ctx.texture = SDL_CreateTexture(ctx.renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
 		SCREEN_WIDTH, SCREEN_HEIGHT);
-
+	
 	SDL_CreateWindowAndRenderer(16 * 8 * scale, 32 * 8 * scale, 0, &ctx.dbgWindow, &ctx.dbgRenderer);
 	ctx.dbgSurface = SDL_CreateRGBSurface(0,
 		(16 * 8 * scale) + (16 * scale),
@@ -53,7 +52,9 @@ void gui_init() {
 	int x, y;
 	SDL_GetWindowPosition(ctx.window, &x, &y);
 	SDL_SetWindowPosition(ctx.dbgWindow, x + SCREEN_WIDTH + 25, y + 25);
-	SDL_SetWindowTitle(ctx.dbgWindow, "gbc debug view");
+
+	SDL_SetWindowTitle(ctx.window, "gbc");
+	SDL_SetWindowTitle(ctx.dbgWindow, "gbc debug");
 }
 
 void gui_render_tile(SDL_Surface *surface, u16 addr, u16 tile_idx, u16 x, u16 y) {
@@ -111,17 +112,15 @@ void gui_gbc_window_tick() {
 
 	u32 *vbuffer = ppu_get_context()->vbuffer;
 
-	// if (vbuffer == NULL)
-	// 	return;
-
-	for (int line_num = 0; line_num < SCREEN_HEIGHT; ++line_num) {
-		for (int x = 0; x < SCREEN_WIDTH; ++x) {
+	for (int y = 0; y < SCREEN_HEIGHT; y++) {
+		for (int x = 0; x < SCREEN_WIDTH; x++) {
 			rc.x = x * scale;
-			rc.y = line_num * scale;
+			rc.y = y * scale;
 			rc.w = scale;
 			rc.h = scale;
-
-			SDL_FillRect(ctx.surface, &rc, vbuffer[x + (line_num*SCREEN_WIDTH)]);
+			u32 idx = x + (y * SCREEN_WIDTH);
+			u32 color = vbuffer[idx];
+			SDL_FillRect(ctx.surface, &rc, vbuffer[idx]);
 		}
 	}
 
@@ -132,8 +131,8 @@ void gui_gbc_window_tick() {
 }
 
 void gui_tick() {
-	gui_dbg_window_tick();
 	gui_gbc_window_tick();
+	gui_dbg_window_tick();
 }
 
 u64 gui_get_ticks() {

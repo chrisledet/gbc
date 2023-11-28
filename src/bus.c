@@ -135,15 +135,20 @@ u8 bus_read(u16 addr) {
 	} else if (addr < 0xFF80) {
 		switch (addr) {
 			case ADDR_BGP:
-				// TODO
+				return ctx.mem[addr];
+			break;
 			case ADDR_DIV:
 				return timer_read(ADDR_DIV);
+			break;
 			case ADDR_TIMA:
 				return timer_read(ADDR_TIMA);
+			break;
 			case ADDR_TMA:
 				return timer_read(ADDR_TMA);
+			break;
 			case ADDR_TAC:
 				return timer_read(ADDR_TAC);
+			break;
 			case ADDR_IF:
 				return ctx.mem[addr];
 			break;
@@ -154,19 +159,20 @@ u8 bus_read(u16 addr) {
 				return ctx.mem[addr];
 			break;
 			case ADDR_LY:
-				return ctx.mem[addr]++;
+				return ctx.mem[addr];
 			break;
 			case ADDR_LYC:
 				return ctx.mem[addr];
 			break;
 			default:
 				return ctx.mem[addr];
+			break;
 		}
 	} else if (addr < 0xFFFF) {
 		// high ram
 		return ctx.mem[addr];
-	} else if (addr == 0xFFFF) {
-		return ctx.mem[addr]; // ie
+	} else if (addr == ADDR_IE) {
+		return ctx.mem[addr];
 	} else {
 		fprintf(stderr, "ERR: bus_read not supported at address: %02X\n", addr);
 	}
