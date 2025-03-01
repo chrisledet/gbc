@@ -18,8 +18,13 @@ cart_context *cart_get_context() {
     return &ctx;
 }
 
-u8 cart_read(u16 addr) {
-    return ctx.rom_data[addr];
+void cart_clear() {
+    if (ctx.rom_data != NULL) {
+        free(ctx.rom_data);
+    }
+    if (ctx.header != NULL) {
+        free(ctx.header);
+    }
 }
 
 bool cart_init(const char *cart_filepath) {
